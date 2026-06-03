@@ -15,7 +15,7 @@ crons = ["0 * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "ai-sic-news"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "b18f2d72-b0be-4bcd-b954-26fe8bd38226"
 
 [vars]
 # 手动触发抓取接口 /api/refresh 的保护令牌。部署后请改成你自己的随机值，

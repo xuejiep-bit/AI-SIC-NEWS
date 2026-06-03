@@ -5,6 +5,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="google-site-verification" content="kfdl_r02WiIyzoQIr02NPLqPGhe6lDbSo47Cj2QI7cE" />
 <title>AI 产业链资讯 · AI Supply Chain News</title>
 <style>
   :root {

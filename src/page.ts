@@ -160,7 +160,7 @@ function layerCount(layer){ return Object.entries(counts).filter(([k])=>k.starts
 
 async function loadStats(){
   try{
-    const r = await fetch("/api/stats"); const d = await r.json();
+    const r = await fetch("/api/stats?lang="+lang); const d = await r.json();
     counts = {};
     (d.breakdown||[]).forEach(row=>{ counts[(row.layer||"other")+"/"+(row.segment||"_")]=row.n; });
     renderNav();
@@ -173,6 +173,7 @@ async function load(){
   if(sel.layer!=="all") p.set("layer", sel.layer);
   if(sel.segment!=="all") p.set("segment", sel.segment);
   const q = $("#q").value.trim(); if(q) p.set("q", q);
+  p.set("lang", lang);
   p.set("limit","100");
   try{
     const r = await fetch("/api/news?"+p.toString());
@@ -216,7 +217,7 @@ function renderCards(items){
 }
 function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
-$("#langBtn").onclick = ()=>{ lang = lang==="zh"?"en":"zh"; localStorage.setItem("lang",lang); applyI18n(); renderNav(); load(); };
+$("#langBtn").onclick = ()=>{ lang = lang==="zh"?"en":"zh"; localStorage.setItem("lang",lang); applyI18n(); loadStats(); load(); };
 $("#q").oninput = (()=>{ let tmr; return ()=>{ clearTimeout(tmr); tmr=setTimeout(load,300); }; })();
 $("#refreshBtn").onclick = async ()=>{
   $("#status").textContent = t("refreshing"); $("#refreshBtn").disabled = true;

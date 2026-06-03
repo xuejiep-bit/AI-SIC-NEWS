@@ -172,11 +172,14 @@ async function queryNews(env: Env, url: URL) {
   return results;
 }
 
-async function queryStats(env: Env) {
+async function queryStats(env: Env, url: URL) {
+  const lang = url.searchParams.get("lang");
+  const cond = lang && lang !== "all" ? "WHERE lang = ?" : "";
+  const binds = lang && lang !== "all" ? [lang] : [];
   const { results } = await env.DB.prepare(
-    `SELECT layer, segment, COUNT(*) AS n FROM articles GROUP BY layer, segment`,
-  ).all();
-  const total = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles`).first<{ n: number }>();
+    `SELECT layer, segment, COUNT(*) AS n FROM articles ${cond} GROUP BY layer, segment`,
+  ).bind(...binds).all();
+  const total = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles ${cond}`).bind(...binds).first<{ n: number }>();
   return { total: total?.n ?? 0, breakdown: results };
 }
 
@@ -190,7 +193,7 @@ export default {
         return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
       if (path === "/api/news") return json(await queryNews(env, url));
-      if (path === "/api/stats") return json(await queryStats(env));
+      if (path === "/api/stats") return json(await queryStats(env, url));
       if (path === "/api/refresh") {
         const token = env.REFRESH_TOKEN || "";
         if (token) {

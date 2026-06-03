@@ -176,10 +176,16 @@ async function load(){
   p.set("limit","100");
   try{
     const r = await fetch("/api/news?"+p.toString());
-    const items = await r.json();
-    renderCards(items);
+    const data = await r.json();
+    if(!Array.isArray(data)){
+      const msg = (data && data.error) ? data.error : "数据加载失败";
+      $("#status").textContent = (lang==="zh"?"出错: ":"Error: ")+msg;
+      renderCards([]); $("#count").textContent = "";
+      return;
+    }
+    renderCards(data);
     $("#status").textContent = "";
-    $("#count").textContent = I18N[lang].count(items.length);
+    $("#count").textContent = I18N[lang].count(data.length);
   }catch(e){ $("#status").textContent = String(e); }
 }
 

@@ -2,6 +2,7 @@ import { FEEDS } from "./feeds";
 import { parseFeed } from "./rss";
 import { classify } from "./classify";
 import { aiClassify, type AiInput } from "./ai";
+import { investClause } from "./invest";
 import { PAGE_HTML } from "./page";
 
 export interface Env {
@@ -161,6 +162,9 @@ async function queryNews(env: Env, url: URL) {
   if (segment && segment !== "all") { where.push("segment = ?"); binds.push(segment); }
   if (lang && lang !== "all") { where.push("lang = ?"); binds.push(lang); }
   if (q) { where.push("(title LIKE ? OR title_zh LIKE ? OR summary LIKE ?)"); binds.push(`%${q}%`, `%${q}%`, `%${q}%`); }
+  if (url.searchParams.get("invest") === "1") {
+    where.push(investClause());
+  }
 
   const sql =
     `SELECT id, title, title_zh, link, summary, source, lang, layer, segment, published_at
@@ -180,7 +184,13 @@ async function queryStats(env: Env, url: URL) {
     `SELECT layer, segment, COUNT(*) AS n FROM articles ${cond} GROUP BY layer, segment`,
   ).bind(...binds).all();
   const total = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles ${cond}`).bind(...binds).first<{ n: number }>();
-  return { total: total?.n ?? 0, breakdown: results };
+
+  // 「投资/融资」跨层级计数（叠加语言过滤）
+  const investCond = (cond ? cond + " AND " : "WHERE ") + investClause();
+  const investRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles ${investCond}`)
+    .bind(...binds).first<{ n: number }>();
+
+  return { total: total?.n ?? 0, invest: investRow?.n ?? 0, breakdown: results };
 }
 
 export default {

@@ -26,7 +26,10 @@ export const FEEDS: Feed[] = [
   { name: "Semiconductor Engineering", url: "https://semiengineering.com/feed/", lang: "en" },
   { name: "EE Times", url: "https://www.eetimes.com/feed/", lang: "en" },
 
-  // ── 英文 · 公司官方博客 ─────────────────────────────
+  // ── 英文 · 大模型 / 公司官方博客 ────────────────────
+  // 注：Anthropic（Claude）目前没有公开 RSS，暂无法自动抓取。
+  { name: "OpenAI", url: "https://openai.com/news/rss.xml", lang: "en" },
+  { name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml", lang: "en" },
   { name: "NVIDIA Blog", url: "https://blogs.nvidia.com/feed/", lang: "en" },
   { name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/", lang: "en" },
   { name: "AWS Machine Learning", url: "https://aws.amazon.com/blogs/machine-learning/feed/", lang: "en" },

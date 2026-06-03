@@ -10,7 +10,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   :root {
     --bg: #0b0e14; --panel: #131826; --panel2: #1a2030; --line: #232a3d;
     --txt: #e6e9f0; --dim: #8a93a8; --acc: #4f8cff; --acc2: #36d399;
-    --up: #4f8cff; --mid: #b07cff; --down: #36d399; --other: #8a93a8;
+    --up: #4f8cff; --mid: #b07cff; --down: #36d399; --other: #8a93a8; --invest: #f5b301;
   }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--txt);
@@ -117,8 +117,9 @@ const COLOR = Object.fromEntries(TAX.map(t=>[t.key,t.color]));
 const SEGLABEL = {}; TAX.forEach(t=>t.segs.forEach(s=>SEGLABEL[s.key]=s));
 
 let lang = localStorage.getItem("lang") || "zh";
-let sel = { layer:"all", segment:"all" };
+let sel = { layer:"all", segment:"all", invest:false };
 let counts = {};
+let investCount = 0;
 
 const $ = s => document.querySelector(s);
 const t = k => I18N[lang][k];
@@ -134,6 +135,10 @@ function renderNav(){
   const nav = $("#nav");
   let html = '<div class="group">';
   html += navItem("all","all",t("all"), totalCount(), null, false);
+  const invLabel = lang==="zh" ? "💰 投资/融资" : "💰 Investment";
+  html += '<div class="navitem '+(sel.invest?'on':'')+'" data-invest="1">'+
+    '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+invLabel+'</span></span>'+
+    '<span class="n">'+(investCount||0)+'</span></div>';
   html += '</div>';
   for(const L of TAX){
     html += '<div class="group">';
@@ -146,11 +151,15 @@ function renderNav(){
   }
   nav.innerHTML = html;
   nav.querySelectorAll(".navitem").forEach(el=>{
-    el.onclick = ()=>{ sel={layer:el.dataset.layer, segment:el.dataset.segment}; renderNav(); load(); };
+    el.onclick = ()=>{
+      if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true}; }
+      else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false}; }
+      renderNav(); load();
+    };
   });
 }
 function navItem(layer,segment,label,n,color,sub){
-  const on = sel.layer===layer && sel.segment===segment;
+  const on = !sel.invest && sel.layer===layer && sel.segment===segment;
   const dot = color ? '<span class="dot" style="background:'+color+'"></span>' : '';
   return '<div class="navitem '+(sub?'sub-seg ':'')+(on?'on':'')+'" data-layer="'+layer+'" data-segment="'+segment+'">'+
     '<span class="label">'+dot+'<span>'+label+'</span></span><span class="n">'+(n||0)+'</span></div>';
@@ -163,6 +172,7 @@ async function loadStats(){
     const r = await fetch("/api/stats?lang="+lang); const d = await r.json();
     counts = {};
     (d.breakdown||[]).forEach(row=>{ counts[(row.layer||"other")+"/"+(row.segment||"_")]=row.n; });
+    investCount = d.invest||0;
     renderNav();
   }catch(e){}
 }
@@ -170,8 +180,11 @@ async function loadStats(){
 async function load(){
   $("#status").textContent = t("loading");
   const p = new URLSearchParams();
-  if(sel.layer!=="all") p.set("layer", sel.layer);
-  if(sel.segment!=="all") p.set("segment", sel.segment);
+  if(sel.invest){ p.set("invest","1"); }
+  else {
+    if(sel.layer!=="all") p.set("layer", sel.layer);
+    if(sel.segment!=="all") p.set("segment", sel.segment);
+  }
   const q = $("#q").value.trim(); if(q) p.set("q", q);
   p.set("lang", lang);
   p.set("limit","100");

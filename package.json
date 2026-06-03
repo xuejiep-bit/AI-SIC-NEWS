@@ -1,0 +1,19 @@
+{
+  "name": "ai-sic-news",
+  "version": "0.1.0",
+  "description": "AI 产业链实时资讯聚合 — 上游/中游/下游全链路新闻，基于 Cloudflare Workers + D1 + Cron",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute ai-sic-news --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute ai-sic-news --local --file=./schema.sql",
+    "refresh:local": "curl -s http://localhost:8787/api/refresh"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^3.90.0"
+  }
+}

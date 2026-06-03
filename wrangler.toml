@@ -1,0 +1,23 @@
+name = "ai-sic-news"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# 静态前端资源（public 目录）由 Worker 直接 inline 提供，这里不单独配置 assets。
+
+# 定时抓取：每小时触发一次 scheduled() 拉取并分类入库。
+# 可按需调整，例如 "0 */2 * * *"（每 2 小时）或 "*/30 * * * *"（每 30 分钟）。
+[triggers]
+crons = ["0 * * * *"]
+
+# D1 数据库绑定。首次使用前需要创建：
+#   npx wrangler d1 create ai-sic-news
+# 然后把下面的 database_id 替换为命令输出的真实 ID。
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-sic-news"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[vars]
+# 手动触发抓取接口 /api/refresh 的保护令牌。部署后请改成你自己的随机值，
+# 或用 `wrangler secret put REFRESH_TOKEN` 设为机密。留空表示不校验（仅建议本地开发时）。
+REFRESH_TOKEN = ""

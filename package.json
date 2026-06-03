@@ -11,6 +11,9 @@
     "db:init:local": "wrangler d1 execute ai-sic-news --local --file=./schema.sql",
     "refresh:local": "curl -s http://localhost:8787/api/refresh"
   },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241106.0",
     "typescript": "^5.6.0",

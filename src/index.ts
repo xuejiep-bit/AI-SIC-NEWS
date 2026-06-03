@@ -1,11 +1,16 @@
 import { FEEDS } from "./feeds";
 import { parseFeed } from "./rss";
 import { classify } from "./classify";
+import { aiClassify, type AiInput } from "./ai";
 import { PAGE_HTML } from "./page";
 
 export interface Env {
   DB: D1Database;
   REFRESH_TOKEN?: string;
+  ANTHROPIC_API_KEY?: string;
+  USE_AI?: string;          // "1" / "true" 开启 Claude 语义分类+翻译
+  AI_MODEL?: string;        // 默认 claude-opus-4-8
+  RETENTION_DAYS?: string;  // 保留天数，默认 30；<=0 表示不清理
 }
 
 // 基于链接的稳定 id（FNV-1a 32bit），用于去重
@@ -18,14 +23,31 @@ function hashId(link: string): string {
   return h.toString(16).padStart(8, "0");
 }
 
+// 标题归一化：小写、去除空白与标点，仅保留字母数字与 CJK。用于跨源相似标题去重。
+function titleKey(title: string): string {
+  return (title || "")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "")
+    .slice(0, 200);
+}
+
+const aiEnabled = (env: Env) =>
+  !!env.ANTHROPIC_API_KEY && (env.USE_AI === "1" || env.USE_AI === "true");
+
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
+interface Row {
+  id: string; title: string; titleZh: string | null; titleKey: string; link: string;
+  summary: string; source: string; lang: string; layer: string; segment: string | null;
+  score: number; publishedAt: number;
+}
+
 // ── 抓取 + 分类 + 入库 ────────────────────────────────
-async function ingest(env: Env): Promise<{ feeds: number; fetched: number; upserted: number; errors: string[] }> {
+async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newItems: number; upserted: number; aiUsed: boolean; deleted: number; errors: string[] }> {
   const errors: string[] = [];
   const now = Date.now();
 
@@ -37,56 +59,75 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; upser
       });
       if (!res.ok) throw new Error(`${feed.name}: HTTP ${res.status}`);
       const xml = await res.text();
-      const items = parseFeed(xml);
-      return { feed, items };
+      return { feed, items: parseFeed(xml) };
     }),
   );
 
-  // 收集所有条目并去重（同一次抓取内）
-  const rows = new Map<string, {
-    id: string; title: string; link: string; summary: string; source: string;
-    lang: string; layer: string; segment: string | null; score: number; publishedAt: number;
-  }>();
-
+  // 收集并按 id 去重（同一次抓取内）
+  const candidates = new Map<string, Row>();
   let fetched = 0;
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    if (r.status === "rejected") {
-      errors.push(String(r.reason).slice(0, 200));
-      continue;
-    }
+  for (const r of results) {
+    if (r.status === "rejected") { errors.push(String(r.reason).slice(0, 200)); continue; }
     const { feed, items } = r.value;
     for (const it of items) {
       fetched++;
-      const c = classify(it.title, it.summary);
       const id = hashId(it.link);
-      rows.set(id, {
-        id,
-        title: it.title,
-        link: it.link,
-        summary: it.summary,
-        source: feed.name,
-        lang: feed.lang,
-        layer: c.layer,
-        segment: c.segment,
-        score: c.score,
-        publishedAt: it.publishedAt ?? now,
+      if (candidates.has(id)) continue;
+      candidates.set(id, {
+        id, title: it.title, titleZh: feed.lang === "zh" ? it.title : null,
+        titleKey: titleKey(it.title), link: it.link, summary: it.summary,
+        source: feed.name, lang: feed.lang, layer: "other", segment: null,
+        score: 0, publishedAt: it.publishedAt ?? now,
       });
     }
   }
 
-  // 批量 upsert：已存在的链接忽略（保留首次入库时间）
-  const stmt = env.DB.prepare(
-    `INSERT INTO articles (id, title, link, summary, source, lang, layer, segment, score, published_at, fetched_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO NOTHING`,
-  );
-  const batch = [...rows.values()].map((a) =>
-    stmt.bind(a.id, a.title, a.link, a.summary, a.source, a.lang, a.layer, a.segment, a.score, a.publishedAt, now),
-  );
+  // 只处理库中尚不存在的条目（按 id），避免重复分类与浪费 AI 调用
+  const allIds = [...candidates.keys()];
+  const existing = new Set<string>();
+  for (let i = 0; i < allIds.length; i += 100) {
+    const chunk = allIds.slice(i, i + 100);
+    const ph = chunk.map(() => "?").join(",");
+    const { results: rows } = await env.DB.prepare(`SELECT id FROM articles WHERE id IN (${ph})`).bind(...chunk).all<{ id: string }>();
+    for (const row of rows) existing.add(row.id);
+  }
+  const newItems = [...candidates.values()].filter((r) => !existing.has(r.id));
 
+  // 关键词分类（始终执行，作为基线与 AI 失败时的回退）
+  for (const r of newItems) {
+    const c = classify(r.title, r.summary);
+    r.layer = c.layer; r.segment = c.segment; r.score = c.score;
+  }
+
+  // 可选：Claude 语义分类 + 中文标题翻译，覆盖关键词结果
+  let aiUsed = false;
+  if (aiEnabled(env) && newItems.length > 0) {
+    try {
+      const inputs: AiInput[] = newItems.map((r) => ({ title: r.title, summary: r.summary, lang: r.lang }));
+      const ai = await aiClassify(env.ANTHROPIC_API_KEY!, env.AI_MODEL || "claude-opus-4-8", inputs);
+      for (let i = 0; i < newItems.length; i++) {
+        const a = ai[i];
+        if (!a) continue;
+        newItems[i].layer = a.layer;
+        newItems[i].segment = a.segment;
+        if (a.titleZh) newItems[i].titleZh = a.titleZh;
+      }
+      aiUsed = true;
+    } catch (err) {
+      errors.push("ai: " + String(err).slice(0, 200));
+    }
+  }
+
+  // 入库：id 主键 + title_key 唯一，OR IGNORE 同时实现链接去重与跨源标题去重
+  const stmt = env.DB.prepare(
+    `INSERT OR IGNORE INTO articles
+       (id, title, title_zh, title_key, link, summary, source, lang, layer, segment, score, published_at, fetched_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const batch = newItems.map((a) =>
+    stmt.bind(a.id, a.title, a.titleZh, a.titleKey, a.link, a.summary, a.source, a.lang, a.layer, a.segment, a.score, a.publishedAt, now),
+  );
   let upserted = 0;
-  // D1 batch 一次最多约 100 条，分片提交
   for (let i = 0; i < batch.length; i += 50) {
     const slice = batch.slice(i, i + 50);
     if (slice.length === 0) continue;
@@ -94,7 +135,16 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; upser
     upserted += res.reduce((n, r) => n + (r.meta?.changes ?? 0), 0);
   }
 
-  return { feeds: FEEDS.length, fetched, upserted, errors };
+  // 数据保留：清理过期文章
+  let deleted = 0;
+  const retentionDays = parseInt(env.RETENTION_DAYS || "30", 10);
+  if (retentionDays > 0) {
+    const cutoff = now - retentionDays * 86400000;
+    const res = await env.DB.prepare(`DELETE FROM articles WHERE published_at < ?`).bind(cutoff).run();
+    deleted = res.meta?.changes ?? 0;
+  }
+
+  return { feeds: FEEDS.length, fetched, newItems: newItems.length, upserted, aiUsed, deleted, errors };
 }
 
 // ── 查询 ──────────────────────────────────────────────
@@ -110,10 +160,10 @@ async function queryNews(env: Env, url: URL) {
   if (layer && layer !== "all") { where.push("layer = ?"); binds.push(layer); }
   if (segment && segment !== "all") { where.push("segment = ?"); binds.push(segment); }
   if (lang && lang !== "all") { where.push("lang = ?"); binds.push(lang); }
-  if (q) { where.push("(title LIKE ? OR summary LIKE ?)"); binds.push(`%${q}%`, `%${q}%`); }
+  if (q) { where.push("(title LIKE ? OR title_zh LIKE ? OR summary LIKE ?)"); binds.push(`%${q}%`, `%${q}%`, `%${q}%`); }
 
   const sql =
-    `SELECT id, title, link, summary, source, lang, layer, segment, published_at
+    `SELECT id, title, title_zh, link, summary, source, lang, layer, segment, published_at
      FROM articles ${where.length ? "WHERE " + where.join(" AND ") : ""}
      ORDER BY published_at DESC LIMIT ?`;
   binds.push(limit);
@@ -137,29 +187,18 @@ export default {
 
     try {
       if (path === "/" || path === "/index.html") {
-        return new Response(PAGE_HTML, {
-          headers: { "content-type": "text/html; charset=utf-8" },
-        });
+        return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
-
-      if (path === "/api/news") {
-        return json(await queryNews(env, url));
-      }
-
-      if (path === "/api/stats") {
-        return json(await queryStats(env));
-      }
-
+      if (path === "/api/news") return json(await queryNews(env, url));
+      if (path === "/api/stats") return json(await queryStats(env));
       if (path === "/api/refresh") {
         const token = env.REFRESH_TOKEN || "";
         if (token) {
           const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
           if (provided !== token) return json({ error: "unauthorized" }, 401);
         }
-        const summary = await ingest(env);
-        return json({ ok: true, ...summary });
+        return json({ ok: true, ...(await ingest(env)) });
       }
-
       return json({ error: "not found" }, 404);
     } catch (err) {
       return json({ error: String(err) }, 500);

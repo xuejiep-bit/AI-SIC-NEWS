@@ -21,3 +21,17 @@ database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 # 手动触发抓取接口 /api/refresh 的保护令牌。部署后请改成你自己的随机值，
 # 或用 `wrangler secret put REFRESH_TOKEN` 设为机密。留空表示不校验（仅建议本地开发时）。
 REFRESH_TOKEN = ""
+
+# 是否开启 Claude 语义分类 + 中文标题翻译。设为 "1" 开启（需同时配置 ANTHROPIC_API_KEY 机密）。
+# 关闭时使用关键词分类（零成本）。
+USE_AI = ""
+
+# Claude 模型。默认 claude-opus-4-8（最准）。这是每小时批量分类任务，
+# 若想显著降低成本，可改为 "claude-haiku-4-5"。
+AI_MODEL = "claude-opus-4-8"
+
+# 数据保留天数；超过则在每次抓取后清理。设为 "0" 表示永不清理。
+RETENTION_DAYS = "30"
+
+# ANTHROPIC_API_KEY 不要写在这里——用机密方式设置：
+#   npx wrangler secret put ANTHROPIC_API_KEY

@@ -198,8 +198,9 @@ function renderCards(items){
     const seg = SEGLABEL[a.segment];
     const segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : (lang==="zh"?"行业动态":"Industry");
     const color = COLOR[a.layer]||"var(--other)";
+    const title = (lang==="zh" && a.title_zh) ? a.title_zh : a.title;
     return '<div class="card">'+
-      '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(a.title)+'</a>'+
+      '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a>'+
       (a.summary?'<div class="s">'+esc(a.summary)+'</div>':'')+
       '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+
       '<span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span>'+

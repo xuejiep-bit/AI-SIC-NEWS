@@ -7,7 +7,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="google-site-verification" content="kfdl_r02WiIyzoQIr02NPLqPGhe6lDbSo47Cj2QI7cE" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>AI 产业链资讯 · AI Supply Chain News</title>
+<title>AI 链 · AIChain — AI 产业链实时资讯</title>
 <style>
   :root {
     --bg: #0b0e14; --panel: #131826; --panel2: #1a2030; --line: #232a3d;
@@ -65,8 +65,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <header>
   <div class="logo" aria-hidden="true">AI</div>
   <div>
-    <h1 data-i18n="title">AI 产业链实时资讯</h1>
-    <div class="sub" data-i18n="subtitle">从一粒沙子(硅)到你手机里的聊天框 · 上游→中游→下游全链路</div>
+    <h1 data-i18n="title">AI 链</h1>
   </div>
   <div class="spacer"></div>
   <button class="btn" id="langBtn">EN</button>
@@ -89,10 +88,10 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 </div>
 <script>
 const I18N = {
-  zh: { title:"AI 产业链实时资讯", subtitle:"从一粒沙子(硅)到你手机里的聊天框 · 上游→中游→下游全链路",
+  zh: { title:"AI 链",
     refresh:"刷新数据", search:"搜索关键词…", empty:"暂无数据。点击右上角「刷新数据」拉取最新资讯。",
     all:"全部", loading:"加载中…", refreshing:"正在抓取…", count:n=>n+" 条资讯" },
-  en: { title:"AI Supply Chain News", subtitle:"From a grain of sand (silicon) to the chatbox in your phone · Upstream → Midstream → Downstream",
+  en: { title:"AIChain",
     refresh:"Refresh", search:"Search…", empty:"No data yet. Click \\"Refresh\\" to fetch the latest news.",
     all:"All", loading:"Loading…", refreshing:"Fetching…", count:n=>n+" articles" },
 };

@@ -122,6 +122,18 @@ let sel = { layer:"all", segment:"all", invest:false };
 let counts = {};
 let investCount = 0;
 
+// 从网址参数初始化筛选状态，让 sitemap 里的分类网址（?layer= / ?segment= / ?invest=1 / ?lang=）
+// 直接展示对应内容，便于分享与搜索引擎收录。
+(function(){
+  const sp = new URLSearchParams(location.search);
+  const l = sp.get("lang"); if(l==="en"||l==="zh") lang = l;
+  if(sp.get("invest")==="1"){ sel.invest = true; }
+  else {
+    if(sp.get("layer")) sel.layer = sp.get("layer");
+    if(sp.get("segment")) sel.segment = sp.get("segment");
+  }
+})();
+
 const $ = s => document.querySelector(s);
 const t = k => I18N[lang][k];
 
@@ -240,6 +252,7 @@ $("#refreshBtn").onclick = async ()=>{
   $("#refreshBtn").disabled = false;
 };
 
+const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
 applyI18n(); loadStats(); load();
 </script>
 </body>

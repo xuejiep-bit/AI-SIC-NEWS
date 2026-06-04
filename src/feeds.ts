@@ -44,4 +44,23 @@ export const FEEDS: Feed[] = [
   { name: "虎嗅网", url: "https://www.huxiu.com/rss/0.xml", lang: "zh" },
   { name: "雷峰网", url: "https://www.leiphone.com/feed", lang: "zh" },
   { name: "cnBeta", url: "https://www.cnbeta.com.tw/backend.php", lang: "zh" },
+
+  // ── 经 Google News RSS 聚合（拿标题+链接，正文跳原站）─────
+  // 路透等媒体已关闭官方 RSS，用 Google News 按来源检索可拿到标题与跳转链接。
+  // 正文是否可读取决于用户在原站的会员权限；我们只展示标题/摘要/链接。
+  {
+    name: "路透 Reuters",
+    url: "https://news.google.com/rss/search?q=(AI%20OR%20%22artificial%20intelligence%22%20OR%20semiconductor%20OR%20chip%20OR%20funding)%20site:reuters.com&hl=en-US&gl=US&ceid=US:en",
+    lang: "en",
+  },
+  {
+    name: "彭博 Bloomberg",
+    url: "https://news.google.com/rss/search?q=(AI%20OR%20%22artificial%20intelligence%22%20OR%20semiconductor%20OR%20chip)%20site:bloomberg.com&hl=en-US&gl=US&ceid=US:en",
+    lang: "en",
+  },
+  {
+    name: "路透中文",
+    url: "https://news.google.com/rss/search?q=(AI%20OR%20%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD%20OR%20%E8%8A%AF%E7%89%87%20OR%20%E5%8D%8A%E5%AF%BC%E4%BD%93)%20site:reuters.com&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+    lang: "zh",
+  },
 ];

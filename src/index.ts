@@ -3,6 +3,7 @@ import { parseFeed } from "./rss";
 import { classify } from "./classify";
 import { aiClassify, type AiInput } from "./ai";
 import { investClause } from "./invest";
+import { LAYERS, SEGMENTS } from "./taxonomy";
 import { PAGE_HTML } from "./page";
 
 export interface Env {
@@ -193,6 +194,23 @@ async function queryStats(env: Env, url: URL) {
   return { total: total?.n ?? 0, invest: investRow?.n ?? 0, breakdown: results };
 }
 
+// ── SEO: sitemap & robots ─────────────────────────────
+function sitemapXml(origin: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls: string[] = [origin + "/"];
+  for (const L of LAYERS) if (L.key !== "other") urls.push(`${origin}/?layer=${L.key}`);
+  urls.push(`${origin}/?invest=1`);
+  for (const s of SEGMENTS) urls.push(`${origin}/?segment=${s.key}`);
+  const body = urls
+    .map((u) => `  <url><loc>${u}</loc><lastmod>${today}</lastmod><changefreq>hourly</changefreq></url>`)
+    .join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>`;
+}
+
+function robotsTxt(origin: string): string {
+  return `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -201,6 +219,12 @@ export default {
     try {
       if (path === "/" || path === "/index.html") {
         return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+      if (path === "/sitemap.xml") {
+        return new Response(sitemapXml(url.origin), { headers: { "content-type": "application/xml; charset=utf-8" } });
+      }
+      if (path === "/robots.txt") {
+        return new Response(robotsTxt(url.origin), { headers: { "content-type": "text/plain; charset=utf-8" } });
       }
       if (path === "/api/news") return json(await queryNews(env, url));
       if (path === "/api/stats") return json(await queryStats(env, url));

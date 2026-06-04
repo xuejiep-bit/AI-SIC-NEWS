@@ -1,5 +1,5 @@
-// AI 产业链分类体系 —— 对应「上游 / 中游 / 下游」三层及各细分环节。
-// 资讯分类通过对标题+摘要做关键词匹配打分实现（见 classify.ts）。
+// AI 产业链分类体系（投资板块视角）—— 三层 + 24 个细分板块。
+// 每个板块的 keywords 含中英文及代表公司，便于关键词打分分类（见 classify.ts）。
 
 export type Layer = "upstream" | "midstream" | "downstream" | "other";
 
@@ -8,7 +8,6 @@ export interface Segment {
   layer: Layer;
   zh: string;
   en: string;
-  // 命中即归入该环节的关键词（中英文混合，大小写不敏感）
   keywords: string[];
 }
 
@@ -20,168 +19,187 @@ export const LAYERS: { key: Layer; zh: string; en: string }[] = [
 ];
 
 export const SEGMENTS: Segment[] = [
-  // ── 上游 ──────────────────────────────────────────────
+  // ── 上游 · 基础设施（卖铲子，确定性最高）──────────────
   {
-    key: "equipment_materials",
-    layer: "upstream",
-    zh: "半导体设备与材料",
-    en: "Equipment & Materials",
+    key: "ai_compute_chip", layer: "upstream", zh: "AI算力芯片", en: "AI Compute Chips",
     keywords: [
-      "光刻机", "光刻胶", "刻蚀", "薄膜沉积", "半导体设备", "晶圆制造设备", "特种气体",
-      "ASML", "EUV", "lithography", "photoresist", "etch", "deposition",
-      "Applied Materials", "应用材料", "Lam Research", "泛林", "Tokyo Electron",
-      "东京电子", "KLA", "wafer fab equipment", "semiconductor equipment",
+      "AI算力芯片", "算力芯片", "AI芯片", "AI chip", "GPU", "加速器", "accelerator", "AI accelerator",
+      "英伟达", "Nvidia", "AMD", "博通", "Broadcom", "寒武纪", "Cambricon", "Groq", "Cerebras",
+      "H100", "H200", "B200", "Blackwell", "GB200", "MI300", "MI350",
     ],
   },
   {
-    key: "chip_design_mfg",
-    layer: "upstream",
-    zh: "芯片设计与制造",
-    en: "Chip Design & Fabrication",
+    key: "self_designed_chip", layer: "upstream", zh: "云厂自研芯片", en: "In-house Silicon",
     keywords: [
-      "英伟达", "Nvidia", "GPU", "AMD", "TPU", "Trainium", "Maia", "昇腾", "Ascend",
-      "台积电", "TSMC", "三星代工", "Samsung Foundry", "英特尔", "Intel", "Fabless",
-      "晶圆代工", "foundry", "芯片设计", "chip design", "制程", "nanometer", "nm 制程",
-      "H100", "H200", "B200", "Blackwell", "GB200", "AI chip", "AI 芯片", "加速器", "accelerator",
-      "Cerebras", "Groq", "寒武纪", "Cambricon",
+      "自研芯片", "custom silicon", "in-house chip", "TPU", "谷歌TPU", "Google TPU",
+      "Trainium", "Inferentia", "Maia", "昇腾", "Ascend", "华为昇腾", "自研AI芯片",
     ],
   },
   {
-    key: "memory_interconnect",
-    layer: "upstream",
-    zh: "存储与互联",
-    en: "Memory & Interconnect",
+    key: "foundry", layer: "upstream", zh: "晶圆代工", en: "Foundry",
     keywords: [
-      "HBM", "高带宽内存", "SK海力士", "SK Hynix", "美光", "Micron", "DRAM", "存储芯片",
-      "NVLink", "光模块", "光通信", "交换机", "interconnect", "optical module", "switch",
-      "中际旭创", "新易盛", "InnoLight", "CPO", "co-packaged optics", "InfiniBand", "以太网交换",
+      "晶圆代工", "代工厂", "foundry", "台积电", "TSMC", "三星代工", "Samsung Foundry",
+      "中芯国际", "SMIC", "格芯", "GlobalFoundries", "制程", "3nm", "2nm", "nanometer", "先进制程",
     ],
   },
   {
-    key: "server_datacenter",
-    layer: "upstream",
-    zh: "服务器与数据中心",
-    en: "Servers & Data Centers",
+    key: "semi_equipment", layer: "upstream", zh: "半导体设备", en: "Semi Equipment",
     keywords: [
-      "服务器", "AI 服务器", "数据中心", "超微", "Supermicro", "戴尔", "Dell", "浪潮",
-      "工业富联", "data center", "datacenter", "server", "rack", "机柜", "Foxconn", "HPE",
+      "半导体设备", "光刻机", "ASML", "EUV", "lithography", "刻蚀", "etch", "薄膜沉积", "deposition",
+      "应用材料", "Applied Materials", "泛林", "Lam Research", "东京电子", "Tokyo Electron", "KLA",
+      "北方华创", "中微公司", "晶圆制造设备",
     ],
   },
   {
-    key: "cloud",
-    layer: "upstream",
-    zh: "云计算",
-    en: "Cloud Computing",
+    key: "semi_material", layer: "upstream", zh: "半导体材料", en: "Semi Materials",
     keywords: [
-      "云计算", "云服务", "AWS", "Azure", "Google Cloud", "谷歌云", "阿里云", "Alibaba Cloud",
-      "腾讯云", "华为云", "Oracle Cloud", "CoreWeave", "云厂商", "cloud provider", "hyperscaler",
-      "算力租赁", "GPU cloud", "算力出租",
+      "半导体材料", "光刻胶", "photoresist", "特种气体", "特气", "硅片", "wafer", "silicon wafer",
+      "电子材料", "CMP", "靶材", "电子特气",
     ],
   },
   {
-    key: "energy_cooling",
-    layer: "upstream",
-    zh: "能源与散热",
-    en: "Energy & Cooling",
+    key: "advanced_packaging", layer: "upstream", zh: "先进封装(CoWoS)", en: "Advanced Packaging",
     keywords: [
-      "液冷", "散热", "数据中心耗电", "电力", "核电", "nuclear", "power grid", "energy",
-      "cooling", "liquid cooling", "immersion cooling", "浸没式", "电网", "SMR", "小型核反应堆",
-      "data center power", "电力供应",
+      "先进封装", "advanced packaging", "CoWoS", "chiplet", "2.5D", "3D封装", "封测",
+      "日月光", "ASE", "长电科技", "通富微电", "甬矽电子", "封装基板",
+    ],
+  },
+  {
+    key: "hbm_memory", layer: "upstream", zh: "HBM/存储", en: "HBM & Memory",
+    keywords: [
+      "HBM", "高带宽内存", "HBM3", "HBM3E", "HBM4", "SK海力士", "SK Hynix", "海力士",
+      "美光", "Micron", "DRAM", "存储芯片", "闪存", "NAND", "存储颗粒",
+    ],
+  },
+  {
+    key: "optical_interconnect", layer: "upstream", zh: "光模块/光互联", en: "Optical / Interconnect",
+    keywords: [
+      "光模块", "光通信", "光互联", "optical module", "CPO", "co-packaged optics", "硅光",
+      "中际旭创", "新易盛", "InnoLight", "天孚通信", "Coherent", "NVLink", "InfiniBand",
+      "交换机", "switch", "800G", "1.6T",
+    ],
+  },
+  {
+    key: "server_datacenter", layer: "upstream", zh: "服务器/数据中心", en: "Servers & DC",
+    keywords: [
+      "AI服务器", "服务器", "数据中心", "data center", "datacenter", "server", "机柜", "rack",
+      "超微", "Supermicro", "工业富联", "浪潮", "戴尔", "Dell", "HPE", "Foxconn", "鸿海",
+    ],
+  },
+  {
+    key: "cloud_compute", layer: "upstream", zh: "云算力/租赁", en: "Cloud & GPU Rental",
+    keywords: [
+      "云计算", "云服务", "算力租赁", "算力出租", "GPU cloud", "hyperscaler", "云厂商",
+      "AWS", "Azure", "Google Cloud", "谷歌云", "阿里云", "腾讯云", "华为云", "Oracle Cloud",
+      "CoreWeave", "Lambda", "甲骨文云",
+    ],
+  },
+  {
+    key: "power_energy", layer: "upstream", zh: "电力/能源/核电", en: "Power & Energy",
+    keywords: [
+      "数据中心耗电", "电力", "电网", "power grid", "能源", "energy", "核电", "nuclear", "SMR",
+      "小型核反应堆", "Vertiv", "维谛", "电力设备", "发电", "储能", "data center power", "用电",
+    ],
+  },
+  {
+    key: "cooling", layer: "upstream", zh: "液冷散热", en: "Cooling",
+    keywords: [
+      "液冷", "散热", "cooling", "liquid cooling", "immersion cooling", "浸没式", "冷板",
+      "风冷", "thermal", "英维克", "高澜股份", "数据中心散热",
     ],
   },
 
-  // ── 中游 ──────────────────────────────────────────────
+  // ── 中游 · 模型与平台（高投入、分歧最大）──────────────
   {
-    key: "data",
-    layer: "midstream",
-    zh: "数据",
-    en: "Data & Annotation",
+    key: "closed_model", layer: "midstream", zh: "闭源大模型", en: "Closed Models",
+    keywords: [
+      "闭源", "闭源模型", "闭源大模型", "OpenAI", "GPT", "GPT-5", "Anthropic", "Claude",
+      "Gemini", "DeepMind", "xAI", "Grok", "API 调用", "API调用", "前沿模型", "frontier model",
+    ],
+  },
+  {
+    key: "open_model", layer: "midstream", zh: "开源/国产模型", en: "Open & China Models",
+    keywords: [
+      "开源模型", "开源大模型", "open source model", "open weights", "开源", "Llama", "Meta AI",
+      "DeepSeek", "深度求索", "通义千问", "Qwen", "智谱", "GLM", "月之暗面", "Kimi", "Mistral",
+      "文心一言", "百度文心", "豆包大模型", "国产大模型", "Hugging Face", "模型权重",
+    ],
+  },
+  {
+    key: "data_annotation", layer: "midstream", zh: "数据/标注", en: "Data & Annotation",
     keywords: [
       "数据标注", "数据清洗", "数据采集", "合成数据", "训练数据", "Scale AI", "data labeling",
-      "data annotation", "synthetic data", "training data", "dataset", "数据集", "语料",
+      "data annotation", "synthetic data", "dataset", "数据集", "语料", "高质量数据",
     ],
   },
   {
-    key: "model_training",
-    layer: "midstream",
-    zh: "算法与模型训练",
-    en: "Models & Training",
-    keywords: [
-      "大模型", "大语言模型", "LLM", "GPT", "Claude", "Gemini", "Llama", "文心一言", "通义千问",
-      "DeepSeek", "深度求索", "月之暗面", "Kimi", "智谱", "GLM", "OpenAI", "Anthropic",
-      "DeepMind", "Mistral", "xAI", "Grok", "多模态", "multimodal", "模型训练", "预训练",
-      "fine-tune", "微调", "推理模型", "reasoning model", "扩散模型", "diffusion", "Sora",
-      "foundation model", "基础模型", "AGI", "百度", "字节", "腾讯", "阿里", "Qwen",
-    ],
-  },
-  {
-    key: "open_source",
-    layer: "midstream",
-    zh: "开源 / 闭源",
-    en: "Open vs Closed Source",
-    keywords: [
-      "开源模型", "开源大模型", "模型权重", "open source model", "open weights", "open-source LLM",
-      "Hugging Face", "权重公开", "闭源", "API 调用",
-    ],
-  },
-  {
-    key: "frameworks",
-    layer: "midstream",
-    zh: "框架与工具链",
-    en: "Frameworks & MLOps",
+    key: "framework_tooling", layer: "midstream", zh: "框架/工具链", en: "Frameworks & MLOps",
     keywords: [
       "PyTorch", "TensorFlow", "JAX", "CUDA", "MLOps", "向量数据库", "vector database",
-      "模型部署", "训练框架", "工具链", "LangChain", "推理框架", "vLLM", "model serving",
+      "LangChain", "vLLM", "推理框架", "训练框架", "工具链", "model serving", "模型部署", "微调平台",
     ],
   },
 
-  // ── 下游 ──────────────────────────────────────────────
+  // ── 下游 · 应用与变现（潜力大，胜负未定）──────────────
   {
-    key: "consumer",
-    layer: "downstream",
-    zh: "面向消费者 (To C)",
-    en: "Consumer (To C)",
+    key: "ai_agent", layer: "downstream", zh: "AI Agent/智能体", en: "AI Agents",
     keywords: [
-      "ChatGPT", "豆包", "文小言", "聊天助手", "AI 写作", "AI 绘画", "Midjourney", "AI 视频",
-      "AI 搜索", "AI 教育", "AI 陪伴", "Perplexity", "Character.AI", "AI assistant",
-      "image generation", "video generation", "AI app", "consumer AI", "DALL", "Stable Diffusion",
+      "AI Agent", "AI agent", "智能体", "agentic", "自主智能体", "multi-agent", "多智能体",
+      "AutoGPT", "AI 助理", "智能助手", "agent 框架",
     ],
   },
   {
-    key: "enterprise",
-    layer: "downstream",
-    zh: "面向企业 (To B)",
-    en: "Enterprise (To B)",
+    key: "ai_coding", layer: "downstream", zh: "AI编程", en: "AI Coding",
     keywords: [
-      "智能客服", "代码助手", "GitHub Copilot", "Copilot", "Cursor", "企业级 AI", "enterprise AI",
-      "金融风控", "医疗辅助", "法律", "智能制造", "AI 办公", "coding assistant", "AI agent",
-      "智能体", "RPA", "客服机器人",
+      "AI编程", "代码助手", "编程助手", "coding assistant", "code generation", "GitHub Copilot",
+      "Copilot", "Cursor", "Cognition", "Devin", "Windsurf", "Claude Code", "AI 写代码", "vibe coding",
     ],
   },
   {
-    key: "vertical",
-    layer: "downstream",
-    zh: "垂直行业应用",
-    en: "Vertical Solutions",
+    key: "enterprise_saas", layer: "downstream", zh: "企业软件/SaaS", en: "Enterprise SaaS",
     keywords: [
-      "行业大模型", "垂直应用", "医疗 AI", "金融 AI", "法律 AI", "教育 AI", "工业 AI",
-      "AI 医疗", "AI for science", "蛋白质", "AlphaFold", "药物研发", "vertical AI", "行业解决方案",
+      "企业软件", "SaaS", "企业级AI", "enterprise AI", "智能客服", "CRM", "ERP", "办公软件",
+      "Salesforce", "ServiceNow", "Palantir", "SAP", "Adobe", "微软Copilot", "Microsoft 365", "钉钉",
     ],
   },
   {
-    key: "hardware",
-    layer: "downstream",
-    zh: "智能硬件",
-    en: "Smart Hardware",
+    key: "consumer_app", layer: "downstream", zh: "To C 应用", en: "Consumer Apps",
     keywords: [
-      "AI 手机", "AI PC", "AI 眼镜", "智能音箱", "机器人", "人形机器人", "humanoid", "robot",
-      "自动驾驶", "autonomous driving", "Robotaxi", "Tesla", "特斯拉", "smart glasses",
-      "AI hardware", "具身智能", "embodied AI", "Optimus", "Figure",
+      "ChatGPT", "豆包", "文小言", "聊天助手", "AI写作", "AI绘画", "Midjourney", "AI视频", "Sora",
+      "AI搜索", "Perplexity", "Character.AI", "AI陪伴", "图像生成", "视频生成", "DALL", "Stable Diffusion",
+      "消费级AI", "consumer AI",
+    ],
+  },
+  {
+    key: "autonomous_driving", layer: "downstream", zh: "自动驾驶", en: "Autonomous Driving",
+    keywords: [
+      "自动驾驶", "autonomous driving", "智能驾驶", "Robotaxi", "FSD", "特斯拉FSD", "Tesla FSD",
+      "Waymo", "小鹏", "萝卜快跑", "L4", "激光雷达", "lidar", "无人驾驶", "辅助驾驶",
+    ],
+  },
+  {
+    key: "robotics", layer: "downstream", zh: "人形机器人/具身", en: "Robotics",
+    keywords: [
+      "人形机器人", "humanoid", "机器人", "robot", "具身智能", "embodied AI", "Optimus",
+      "Figure", "宇树", "Unitree", "波士顿动力", "Boston Dynamics", "灵巧手", "机器狗",
+    ],
+  },
+  {
+    key: "ai_hardware", layer: "downstream", zh: "AI硬件", en: "AI Hardware",
+    keywords: [
+      "AI手机", "AI PC", "AI 眼镜", "AI眼镜", "smart glasses", "智能音箱", "AI硬件", "AI hardware",
+      "Rabbit", "AI Pin", "端侧AI", "on-device", "端侧大模型", "AI 耳机",
+    ],
+  },
+  {
+    key: "vertical_industry", layer: "downstream", zh: "垂直行业", en: "Vertical Industries",
+    keywords: [
+      "医疗AI", "AI医疗", "金融AI", "法律AI", "教育AI", "工业AI", "AI for science", "蛋白质",
+      "AlphaFold", "药物研发", "行业大模型", "行业解决方案", "智能制造", "AI制药", "辅助诊断",
     ],
   },
 ];
 
-// 便于按 key 取细分环节
 export const SEGMENT_BY_KEY: Record<string, Segment> = Object.fromEntries(
   SEGMENTS.map((s) => [s.key, s]),
 );

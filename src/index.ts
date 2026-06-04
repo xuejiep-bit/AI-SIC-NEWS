@@ -212,6 +212,26 @@ async function queryStats(env: Env, url: URL) {
   return { total: total?.n ?? 0, invest: investRow?.n ?? 0, video: videoRow?.n ?? 0, breakdown: results };
 }
 
+// 用关键词分类重新归类全部资讯（视频除外）。分类体系调整后跑一次，把存量文章重分到新板块。
+async function reclassifyAll(env: Env): Promise<{ scanned: number; updated: number }> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, title, summary FROM articles WHERE layer != 'video'`,
+  ).all<{ id: string; title: string; summary: string }>();
+  const stmt = env.DB.prepare(`UPDATE articles SET layer = ?, segment = ?, score = ? WHERE id = ?`);
+  const batch = results.map((r) => {
+    const c = classify(r.title || "", r.summary || "");
+    return stmt.bind(c.layer, c.segment, c.score, r.id);
+  });
+  let updated = 0;
+  for (let i = 0; i < batch.length; i += 50) {
+    const slice = batch.slice(i, i + 50);
+    if (slice.length === 0) continue;
+    const res = await env.DB.batch(slice);
+    updated += res.reduce((n, x) => n + (x.meta?.changes ?? 0), 0);
+  }
+  return { scanned: results.length, updated };
+}
+
 // ── SEO: sitemap & robots ─────────────────────────────
 function sitemapXml(origin: string): string {
   const today = new Date().toISOString().slice(0, 10);
@@ -268,6 +288,14 @@ export default {
           if (provided !== token) return json({ error: "unauthorized" }, 401);
         }
         return json({ ok: true, ...(await ingest(env)) });
+      }
+      if (path === "/api/reclassify") {
+        const token = env.REFRESH_TOKEN || "";
+        if (token) {
+          const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
+          if (provided !== token) return json({ error: "unauthorized" }, 401);
+        }
+        return json({ ok: true, ...(await reclassifyAll(env)) });
       }
       return json({ error: "not found" }, 404);
     } catch (err) {

@@ -11,7 +11,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   :root {
     --bg: #0b0e14; --panel: #131826; --panel2: #1a2030; --line: #232a3d;
     --txt: #e6e9f0; --dim: #8a93a8; --acc: #4f8cff; --acc2: #36d399;
-    --up: #4f8cff; --mid: #b07cff; --down: #36d399; --other: #8a93a8; --invest: #f5b301;
+    --up: #4f8cff; --mid: #b07cff; --down: #36d399; --other: #8a93a8; --invest: #f5b301; --video: #ff5c5c;
   }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--txt);
@@ -118,9 +118,10 @@ const COLOR = Object.fromEntries(TAX.map(t=>[t.key,t.color]));
 const SEGLABEL = {}; TAX.forEach(t=>t.segs.forEach(s=>SEGLABEL[s.key]=s));
 
 let lang = localStorage.getItem("lang") || "zh";
-let sel = { layer:"all", segment:"all", invest:false };
+let sel = { layer:"all", segment:"all", invest:false, video:false };
 let counts = {};
 let investCount = 0;
+let videoCount = 0;
 
 // 从网址参数初始化筛选状态，让 sitemap 里的分类网址（?layer= / ?segment= / ?invest=1 / ?lang=）
 // 直接展示对应内容，便于分享与搜索引擎收录。
@@ -128,6 +129,7 @@ let investCount = 0;
   const sp = new URLSearchParams(location.search);
   const l = sp.get("lang"); if(l==="en"||l==="zh") lang = l;
   if(sp.get("invest")==="1"){ sel.invest = true; }
+  else if(sp.get("layer")==="video"){ sel.video = true; }
   else {
     if(sp.get("layer")) sel.layer = sp.get("layer");
     if(sp.get("segment")) sel.segment = sp.get("segment");
@@ -152,6 +154,10 @@ function renderNav(){
   html += '<div class="navitem '+(sel.invest?'on':'')+'" data-invest="1">'+
     '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+invLabel+'</span></span>'+
     '<span class="n">'+(investCount||0)+'</span></div>';
+  const vidLabel = lang==="zh" ? "📺 AI 视频" : "📺 AI Videos";
+  html += '<div class="navitem '+(sel.video?'on':'')+'" data-video="1">'+
+    '<span class="label"><span class="dot" style="background:var(--video)"></span><span>'+vidLabel+'</span></span>'+
+    '<span class="n">'+(videoCount||0)+'</span></div>';
   html += '</div>';
   for(const L of TAX){
     html += '<div class="group">';
@@ -165,14 +171,15 @@ function renderNav(){
   nav.innerHTML = html;
   nav.querySelectorAll(".navitem").forEach(el=>{
     el.onclick = ()=>{
-      if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true}; }
-      else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false}; }
+      if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true, video:false}; }
+      else if(el.dataset.video){ sel={layer:"all", segment:"all", invest:false, video:true}; }
+      else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false, video:false}; }
       renderNav(); load();
     };
   });
 }
 function navItem(layer,segment,label,n,color,sub){
-  const on = !sel.invest && sel.layer===layer && sel.segment===segment;
+  const on = !sel.invest && !sel.video && sel.layer===layer && sel.segment===segment;
   const dot = color ? '<span class="dot" style="background:'+color+'"></span>' : '';
   return '<div class="navitem '+(sub?'sub-seg ':'')+(on?'on':'')+'" data-layer="'+layer+'" data-segment="'+segment+'">'+
     '<span class="label">'+dot+'<span>'+label+'</span></span><span class="n">'+(n||0)+'</span></div>';
@@ -186,6 +193,7 @@ async function loadStats(){
     counts = {};
     (d.breakdown||[]).forEach(row=>{ counts[(row.layer||"other")+"/"+(row.segment||"_")]=row.n; });
     investCount = d.invest||0;
+    videoCount = d.video||0;
     renderNav();
   }catch(e){}
 }
@@ -194,6 +202,7 @@ async function load(){
   $("#status").textContent = t("loading");
   const p = new URLSearchParams();
   if(sel.invest){ p.set("invest","1"); }
+  else if(sel.video){ p.set("layer","video"); }
   else {
     if(sel.layer!=="all") p.set("layer", sel.layer);
     if(sel.segment!=="all") p.set("segment", sel.segment);
@@ -228,9 +237,14 @@ function renderCards(items){
   const box = $("#cards");
   $("#empty").style.display = items.length? "none":"block";
   box.innerHTML = items.map(a=>{
-    const seg = SEGLABEL[a.segment];
-    const segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : (lang==="zh"?"行业动态":"Industry");
-    const color = COLOR[a.layer]||"var(--other)";
+    let segLabel, color;
+    if(a.layer==="video"){
+      segLabel = lang==="zh" ? "📺 视频" : "📺 Video"; color = "var(--video)";
+    } else {
+      const seg = SEGLABEL[a.segment];
+      segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : (lang==="zh"?"行业动态":"Industry");
+      color = COLOR[a.layer]||"var(--other)";
+    }
     const title = (lang==="zh" && a.title_zh) ? a.title_zh : a.title;
     return '<div class="card">'+
       '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a>'+

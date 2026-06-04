@@ -1,4 +1,4 @@
-import { FEEDS } from "./feeds";
+import { ALL_FEEDS } from "./feeds";
 import { parseFeed } from "./rss";
 import { classify } from "./classify";
 import { aiClassify, type AiInput } from "./ai";
@@ -45,7 +45,7 @@ const json = (data: unknown, status = 200) =>
 interface Row {
   id: string; title: string; titleZh: string | null; titleKey: string; link: string;
   summary: string; source: string; lang: string; layer: string; segment: string | null;
-  score: number; publishedAt: number;
+  score: number; publishedAt: number; isVideo: boolean;
 }
 
 // ── 抓取 + 分类 + 入库 ────────────────────────────────
@@ -54,7 +54,7 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   const now = Date.now();
 
   const results = await Promise.allSettled(
-    FEEDS.map(async (feed) => {
+    ALL_FEEDS.map(async (feed) => {
       const res = await fetch(feed.url, {
         headers: { "user-agent": "AI-SIC-News/0.1 (+https://github.com/xuejiep-bit/ai-sic-news)" },
         cf: { cacheTtl: 300 },
@@ -79,7 +79,7 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
         id, title: it.title, titleZh: feed.lang === "zh" ? it.title : null,
         titleKey: titleKey(it.title), link: it.link, summary: it.summary,
         source: feed.name, lang: feed.lang, layer: "other", segment: null,
-        score: 0, publishedAt: it.publishedAt ?? now,
+        score: 0, publishedAt: it.publishedAt ?? now, isVideo: feed.kind === "video",
       });
     }
   }
@@ -95,24 +95,26 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   }
   const newItems = [...candidates.values()].filter((r) => !existing.has(r.id));
 
-  // 关键词分类（始终执行，作为基线与 AI 失败时的回退）
+  // 视频归入 video 分类，不进产业链；其余走关键词分类（基线 + AI 失败时的回退）
   for (const r of newItems) {
+    if (r.isVideo) { r.layer = "video"; r.segment = null; continue; }
     const c = classify(r.title, r.summary);
     r.layer = c.layer; r.segment = c.segment; r.score = c.score;
   }
 
-  // 可选：Claude 语义分类 + 中文标题翻译，覆盖关键词结果
+  // 可选：Claude 语义分类 + 中文标题翻译，覆盖关键词结果（仅资讯，不含视频）
   let aiUsed = false;
-  if (aiEnabled(env) && newItems.length > 0) {
+  const aiItems = newItems.filter((r) => !r.isVideo);
+  if (aiEnabled(env) && aiItems.length > 0) {
     try {
-      const inputs: AiInput[] = newItems.map((r) => ({ title: r.title, summary: r.summary, lang: r.lang }));
+      const inputs: AiInput[] = aiItems.map((r) => ({ title: r.title, summary: r.summary, lang: r.lang }));
       const ai = await aiClassify(env.ANTHROPIC_API_KEY!, env.AI_MODEL || "claude-opus-4-8", inputs);
-      for (let i = 0; i < newItems.length; i++) {
+      for (let i = 0; i < aiItems.length; i++) {
         const a = ai[i];
         if (!a) continue;
-        newItems[i].layer = a.layer;
-        newItems[i].segment = a.segment;
-        if (a.titleZh) newItems[i].titleZh = a.titleZh;
+        aiItems[i].layer = a.layer;
+        aiItems[i].segment = a.segment;
+        if (a.titleZh) aiItems[i].titleZh = a.titleZh;
       }
       aiUsed = true;
     } catch (err) {
@@ -146,7 +148,7 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
     deleted = res.meta?.changes ?? 0;
   }
 
-  return { feeds: FEEDS.length, fetched, newItems: newItems.length, upserted, aiUsed, deleted, errors };
+  return { feeds: ALL_FEEDS.length, fetched, newItems: newItems.length, upserted, aiUsed, deleted, errors };
 }
 
 // ── 查询 ──────────────────────────────────────────────
@@ -157,7 +159,16 @@ async function queryNews(env: Env, url: URL) {
   const q = url.searchParams.get("q");
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "60", 10) || 60, 200);
 
-  const where: string[] = [];
+  // 「AI 视频」视图：只看 YouTube 视频，忽略语言/环节过滤（视频自成一类）
+  if (layer === "video") {
+    const { results } = await env.DB.prepare(
+      `SELECT id, title, title_zh, link, summary, source, lang, layer, segment, published_at
+       FROM articles WHERE layer = 'video' ORDER BY published_at DESC LIMIT ?`,
+    ).bind(limit).all();
+    return results;
+  }
+
+  const where: string[] = ["layer != 'video'"]; // 资讯视图一律排除视频
   const binds: unknown[] = [];
   if (layer && layer !== "all") { where.push("layer = ?"); binds.push(layer); }
   if (segment && segment !== "all") { where.push("segment = ?"); binds.push(segment); }
@@ -179,19 +190,26 @@ async function queryNews(env: Env, url: URL) {
 
 async function queryStats(env: Env, url: URL) {
   const lang = url.searchParams.get("lang");
-  const cond = lang && lang !== "all" ? "WHERE lang = ?" : "";
   const binds = lang && lang !== "all" ? [lang] : [];
+  // 资讯统计：排除视频，叠加语言过滤
+  const conds = ["layer != 'video'"];
+  if (lang && lang !== "all") conds.push("lang = ?");
+  const cond = "WHERE " + conds.join(" AND ");
+
   const { results } = await env.DB.prepare(
     `SELECT layer, segment, COUNT(*) AS n FROM articles ${cond} GROUP BY layer, segment`,
   ).bind(...binds).all();
   const total = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles ${cond}`).bind(...binds).first<{ n: number }>();
 
   // 「投资/融资」跨层级计数（叠加语言过滤）
-  const investCond = (cond ? cond + " AND " : "WHERE ") + investClause();
-  const investRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles ${investCond}`)
+  const investRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles ${cond} AND ${investClause()}`)
     .bind(...binds).first<{ n: number }>();
 
-  return { total: total?.n ?? 0, invest: investRow?.n ?? 0, breakdown: results };
+  // 「AI 视频」计数（不分语言）
+  const videoRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles WHERE layer = 'video'`)
+    .first<{ n: number }>();
+
+  return { total: total?.n ?? 0, invest: investRow?.n ?? 0, video: videoRow?.n ?? 0, breakdown: results };
 }
 
 // ── SEO: sitemap & robots ─────────────────────────────
@@ -200,6 +218,7 @@ function sitemapXml(origin: string): string {
   const urls: string[] = [origin + "/"];
   for (const L of LAYERS) if (L.key !== "other") urls.push(`${origin}/?layer=${L.key}`);
   urls.push(`${origin}/?invest=1`);
+  urls.push(`${origin}/?layer=video`);
   for (const s of SEGMENTS) urls.push(`${origin}/?segment=${s.key}`);
   const body = urls
     .map((u) => `  <url><loc>${u}</loc><lastmod>${today}</lastmod><changefreq>hourly</changefreq></url>`)

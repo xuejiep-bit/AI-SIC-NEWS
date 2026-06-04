@@ -7,6 +7,7 @@ export interface Feed {
   name: string;
   url: string;
   lang: "zh" | "en";
+  kind?: "news" | "video"; // 默认 news；video 表示 YouTube 频道，归入「AI 视频」分类
 }
 
 export const FEEDS: Feed[] = [
@@ -64,3 +65,28 @@ export const FEEDS: Feed[] = [
     lang: "zh",
   },
 ];
+
+// YouTube · AI 领域红人频道（人工精选，均为 100 万+ 订阅）。
+// 用 YouTube 官方频道 RSS 抓取最新视频的标题+链接，归入「AI 视频」分类。
+// 想增删频道：拿到频道的 channel_id（UC 开头），按下面格式加一行即可。
+// channel_id 获取方法：打开频道主页 → 查看网页源代码搜 "channelId"，或用第三方工具。
+const YT = (name: string, channelId: string): Feed => ({
+  name,
+  url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+  lang: "en",
+  kind: "video",
+});
+
+export const YOUTUBE_CHANNELS: Feed[] = [
+  YT("Two Minute Papers", "UCbfYPyITQ-7l4upoX8nvctg"),
+  YT("Lex Fridman", "UCSHZKyawb77ixDdsGog4iWA"),
+  YT("3Blue1Brown", "UCYO_jab_esuFRV4b17AJtAw"),
+  YT("Fireship", "UCsBjURrPoezykLs9EqgamOA"),
+  YT("Computerphile", "UC9-y-6csu5WGm29I7JiwpnA"),
+  YT("sentdex", "UCfzlCWGWYyIQ0aLC5w48gBQ"),
+  YT("ColdFusion", "UC4QZ_LsYcvcq7qOsOhpAX4A"),
+  YT("Marques Brownlee", "UCBJycsmduvYEL83R_U4JriQ"),
+];
+
+// 抓取时统一遍历的全部源
+export const ALL_FEEDS: Feed[] = [...FEEDS, ...YOUTUBE_CHANNELS];

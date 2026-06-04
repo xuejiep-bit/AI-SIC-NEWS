@@ -230,6 +230,15 @@ function robotsTxt(origin: string): string {
   return `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`;
 }
 
+// 站点 Logo（favicon）：蓝→绿渐变圆角方块 + 白色 "AI"
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#4f8cff"/><stop offset="1" stop-color="#36d399"/>
+</linearGradient></defs>
+<rect width="64" height="64" rx="14" fill="url(#g)"/>
+<text x="32" y="45" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="700" fill="#fff" text-anchor="middle">AI</text>
+</svg>`;
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -238,6 +247,11 @@ export default {
     try {
       if (path === "/" || path === "/index.html") {
         return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+      if (path === "/favicon.svg" || path === "/favicon.ico") {
+        return new Response(FAVICON_SVG, {
+          headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400" },
+        });
       }
       if (path === "/sitemap.xml") {
         return new Response(sitemapXml(url.origin), { headers: { "content-type": "application/xml; charset=utf-8" } });

@@ -6,6 +6,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="google-site-verification" content="kfdl_r02WiIyzoQIr02NPLqPGhe6lDbSo47Cj2QI7cE" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>AI 产业链资讯 · AI Supply Chain News</title>
 <style>
   :root {
@@ -20,6 +21,9 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
     display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:var(--panel); }
   h1 { font-size:18px; margin:0; font-weight:700; }
   .sub { color:var(--dim); font-size:13px; }
+  .logo { width:38px; height:38px; border-radius:10px; flex:none; letter-spacing:.5px;
+    background:linear-gradient(135deg,var(--acc),var(--acc2)); color:#fff;
+    font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; }
   .spacer { flex:1; }
   .btn { background:var(--panel2); color:var(--txt); border:1px solid var(--line);
     border-radius:8px; padding:7px 12px; cursor:pointer; font-size:13px; }
@@ -59,6 +63,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
+  <div class="logo" aria-hidden="true">AI</div>
   <div>
     <h1 data-i18n="title">AI 产业链实时资讯</h1>
     <div class="sub" data-i18n="subtitle">从一粒沙子(硅)到你手机里的聊天框 · 上游→中游→下游全链路</div>

@@ -10,6 +10,18 @@ export interface Feed {
   kind?: "news" | "video"; // 默认 news；video 表示 YouTube 频道，归入「AI 视频」分类
 }
 
+// 用 Google News 站内检索某来源里「AI 产业链」相关报道（拿标题+链接，正文跳原站）。
+// 适用于没有可靠官方 RSS 的财经/资讯门户（同花顺、雪球、东方财富、CNBC、FT、WSJ…）。
+// 检索词内置 AI/芯片/半导体/算力/大模型等，自动只筛相关内容。
+const GNEWS = (name: string, lang: "zh" | "en", site: string): Feed => {
+  const q =
+    lang === "zh"
+      ? `(AI OR 人工智能 OR 芯片 OR 半导体 OR 算力 OR 大模型 OR 英伟达) site:${site}`
+      : `(AI OR "artificial intelligence" OR semiconductor OR chip OR GPU OR "data center" OR Nvidia) site:${site}`;
+  const ceid = lang === "zh" ? "hl=zh-CN&gl=CN&ceid=CN:zh-Hans" : "hl=en-US&gl=US&ceid=US:en";
+  return { name, url: `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&${ceid}`, lang };
+};
+
 export const FEEDS: Feed[] = [
   // ── 英文 · 综合科技 / AI ────────────────────────────
   { name: "TechCrunch", url: "https://techcrunch.com/feed/", lang: "en" },
@@ -46,24 +58,25 @@ export const FEEDS: Feed[] = [
   { name: "雷峰网", url: "https://www.leiphone.com/feed", lang: "zh" },
   { name: "cnBeta", url: "https://www.cnbeta.com.tw/backend.php", lang: "zh" },
 
-  // ── 经 Google News RSS 聚合（拿标题+链接，正文跳原站）─────
-  // 路透等媒体已关闭官方 RSS，用 Google News 按来源检索可拿到标题与跳转链接。
-  // 正文是否可读取决于用户在原站的会员权限；我们只展示标题/摘要/链接。
-  {
-    name: "路透 Reuters",
-    url: "https://news.google.com/rss/search?q=(AI%20OR%20%22artificial%20intelligence%22%20OR%20semiconductor%20OR%20chip%20OR%20funding)%20site:reuters.com&hl=en-US&gl=US&ceid=US:en",
-    lang: "en",
-  },
-  {
-    name: "彭博 Bloomberg",
-    url: "https://news.google.com/rss/search?q=(AI%20OR%20%22artificial%20intelligence%22%20OR%20semiconductor%20OR%20chip)%20site:bloomberg.com&hl=en-US&gl=US&ceid=US:en",
-    lang: "en",
-  },
-  {
-    name: "路透中文",
-    url: "https://news.google.com/rss/search?q=(AI%20OR%20%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD%20OR%20%E8%8A%AF%E7%89%87%20OR%20%E5%8D%8A%E5%AF%BC%E4%BD%93)%20site:reuters.com&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-    lang: "zh",
-  },
+  // ── 海外财经主流媒体（经 Google News 站内检索，只筛 AI 产业链相关）─────
+  // 这些站点多无可靠官方 RSS / 设有付费墙；我们只展示标题/摘要/链接，正文跳原站。
+  GNEWS("路透 Reuters", "en", "reuters.com"),
+  GNEWS("彭博 Bloomberg", "en", "bloomberg.com"),
+  GNEWS("CNBC", "en", "cnbc.com"),
+  GNEWS("金融时报 FT", "en", "ft.com"),
+  GNEWS("华尔街日报 WSJ", "en", "wsj.com"),
+  GNEWS("MarketWatch", "en", "marketwatch.com"),
+  GNEWS("Yahoo 财经", "en", "finance.yahoo.com"),
+  GNEWS("The Information", "en", "theinformation.com"),
+  GNEWS("路透中文", "zh", "reuters.com"),
+
+  // ── 国内财经主流媒体（经 Google News 站内检索，只筛 AI 产业链相关）─────
+  GNEWS("东方财富", "zh", "eastmoney.com"),
+  GNEWS("同花顺", "zh", "10jqka.com.cn"),
+  GNEWS("雪球", "zh", "xueqiu.com"),
+  GNEWS("财联社", "zh", "cls.cn"),
+  GNEWS("华尔街见闻", "zh", "wallstreetcn.com"),
+  GNEWS("第一财经", "zh", "yicai.com"),
 ];
 
 // YouTube · AI 领域红人频道（人工精选，均为 100 万+ 订阅）。

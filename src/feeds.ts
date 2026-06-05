@@ -68,6 +68,8 @@ export const FEEDS: Feed[] = [
   GNEWS("MarketWatch", "en", "marketwatch.com"),
   GNEWS("Yahoo 财经", "en", "finance.yahoo.com"),
   GNEWS("The Information", "en", "theinformation.com"),
+  GNEWS("Barron's", "en", "barrons.com"),
+  GNEWS("Seeking Alpha", "en", "seekingalpha.com"),
   GNEWS("路透中文", "zh", "reuters.com"),
 
   // ── 国内财经主流媒体（经 Google News 站内检索，只筛 AI 产业链相关）─────
@@ -77,6 +79,8 @@ export const FEEDS: Feed[] = [
   GNEWS("财联社", "zh", "cls.cn"),
   GNEWS("华尔街见闻", "zh", "wallstreetcn.com"),
   GNEWS("第一财经", "zh", "yicai.com"),
+  GNEWS("格隆汇", "zh", "gelonghui.com"),
+  GNEWS("新浪财经", "zh", "finance.sina.com.cn"),
 ];
 
 // YouTube · AI 领域红人频道（人工精选，均为 100 万+ 订阅）。

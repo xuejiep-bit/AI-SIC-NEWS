@@ -25,9 +25,13 @@ function hashId(link: string): string {
   return h.toString(16).padStart(8, "0");
 }
 
-// 标题归一化：小写、去除空白与标点，仅保留字母数字与 CJK。用于跨源相似标题去重。
+// 标题归一化：用于跨源相似标题去重。
+// 1) 先去掉 Google News 在标题尾部附加的来源署名（如「… - Reuters」「…｜彭博」），
+//    否则同一条新闻会因来源后缀不同而无法去重；
+// 2) 再小写、去空白与标点，仅保留字母数字与 CJK。
 function titleKey(title: string): string {
   return (title || "")
+    .replace(/(\s[-–—]\s?|\s?[|｜]\s?)[^-–—|｜]{1,40}$/u, "") // 去尾部「 - 来源名 / ｜来源」署名
     .toLowerCase()
     .replace(/[^\p{Letter}\p{Number}]+/gu, "")
     .slice(0, 200);

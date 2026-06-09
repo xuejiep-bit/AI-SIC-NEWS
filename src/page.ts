@@ -144,8 +144,8 @@ const COLOR = Object.fromEntries(TAX.map(t=>[t.key,t.color]));
 const SEGLABEL = {}; TAX.forEach(t=>t.segs.forEach(s=>SEGLABEL[s.key]=s));
 const SEGCOLOR = {}; TAX.forEach(t=>t.segs.forEach(s=>SEGCOLOR[s.key]=t.color));
 
-// 公司财报目录（静态精选）。链接直达东方财富个股页（含财务/财报 Tab），无需逐个输代码。
-// em = 东方财富网址路径片段：美股 us/代码，港股 hk/代码，A股 sh/sz/bj+代码。seg 用产业链板块 key。
+// 公司财报目录（静态精选）。链接由 finUrl() 直达各公司的「财务报表」页（打开即最新财报）。
+// tk = 交易代码（美股符号 / 港股5位 / A股6位）；seg 用产业链板块 key。
 const COMPANIES = [
   // ── 美股 ──
   {mkt:"us",name:"英伟达",en:"NVIDIA",tk:"NVDA",em:"us/NVDA",seg:"ai_compute_chip"},
@@ -391,6 +391,12 @@ function earnNavItem(k,label,n){
   return '<div class="navitem '+(earnMkt===k?'on':'')+'" data-mkt="'+k+'">'+
     '<span class="label"><span>'+label+'</span></span><span class="n">'+n+'</span></div>';
 }
+// 直达各公司「财务报表」页：美股用 stockanalysis 财报页，A股用同花顺 F10 财务页，港股用东方财富 F10 财务分析。
+function finUrl(c){
+  if(c.mkt==="us") return "https://stockanalysis.com/stocks/"+c.tk+"/financials/";
+  if(c.mkt==="a")  return "https://basic.10jqka.com.cn/"+c.tk+"/finance.html";
+  return "https://emweb.securities.eastmoney.com/PC_HKF10/NewFinanceAnalysis/index?type=web&code="+c.tk;
+}
 function renderEarnings(){
   const q = $("#q").value.trim().toLowerCase();
   let html = "";
@@ -404,7 +410,7 @@ function renderEarnings(){
     if(!list.length) continue;
     html += '<div class="mkt">'+(lang==="zh"?m.zh:m.en)+'<span class="n">'+list.length+'</span></div>';
     html += '<div class="cards">'+list.map(c=>{
-      const url = "https://quote.eastmoney.com/"+c.em+".html";
+      const url = finUrl(c);
       const nm = lang==="zh"?c.name:c.en;
       const seg = SEGLABEL[c.seg];
       const chip = seg ? '<span class="chip" style="background:'+(SEGCOLOR[c.seg]||"var(--other)")+'">'+

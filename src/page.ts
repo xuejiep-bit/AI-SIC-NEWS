@@ -65,7 +65,9 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .co:hover { border-color:var(--acc); }
   .co .nm { font-weight:600; font-size:14.5px; }
   .co .tk { color:var(--dim); font-size:12px; font-weight:400; margin-left:6px; }
-  .co .fin { color:var(--acc); font-size:12.5px; }
+  .co .fin { display:flex; gap:14px; flex-wrap:wrap; }
+  .co .fin a { color:var(--acc); font-size:12.5px; text-decoration:none; }
+  .co .fin a:hover { text-decoration:underline; }
   @media (max-width:760px){ aside{display:none;} .wrap{display:block;} }
 </style>
 </head>
@@ -391,12 +393,20 @@ function earnNavItem(k,label,n){
   return '<div class="navitem '+(earnMkt===k?'on':'')+'" data-mkt="'+k+'">'+
     '<span class="label"><span>'+label+'</span></span><span class="n">'+n+'</span></div>';
 }
-// 直达各公司财报：美股用 SEC EDGAR 官方申报文件（10-K/10-Q/20-F 原始文件），
-// A股用同花顺 F10 财务页，港股用东方财富港股个股页（含财务）。
-function finUrl(c){
-  if(c.mkt==="us") return "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker="+c.tk+"&type=&dateb=&owner=include&count=40";
-  if(c.mkt==="a")  return "https://basic.10jqka.com.cn/"+c.tk+"/finance.html";
-  return "https://quote.eastmoney.com/hk/"+c.tk+".html";
+// 每家公司的财报链接（可多个）。美股给「官方文件(SEC EDGAR 原始申报)」+「财报数据(stockanalysis)」两个；
+// A股用同花顺 F10 财务页；港股用东方财富港股个股页（含财务）。
+function finLinks(c){
+  const zh = lang==="zh";
+  if(c.mkt==="us") return [
+    {label:(zh?"官方文件":"SEC Filings")+" →", url:"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker="+c.tk+"&type=&dateb=&owner=include&count=40"},
+    {label:(zh?"财报数据":"Financials")+" →", url:"https://stockanalysis.com/stocks/"+c.tk+"/financials/"},
+  ];
+  if(c.mkt==="a") return [
+    {label:(zh?"查看财报":"Financials")+" →", url:"https://basic.10jqka.com.cn/"+c.tk+"/finance.html"},
+  ];
+  return [
+    {label:(zh?"查看财报":"Financials")+" →", url:"https://quote.eastmoney.com/hk/"+c.tk+".html"},
+  ];
 }
 function renderEarnings(){
   const q = $("#q").value.trim().toLowerCase();
@@ -411,15 +421,15 @@ function renderEarnings(){
     if(!list.length) continue;
     html += '<div class="mkt">'+(lang==="zh"?m.zh:m.en)+'<span class="n">'+list.length+'</span></div>';
     html += '<div class="cards">'+list.map(c=>{
-      const url = finUrl(c);
       const nm = lang==="zh"?c.name:c.en;
       const seg = SEGLABEL[c.seg];
       const chip = seg ? '<span class="chip" style="background:'+(SEGCOLOR[c.seg]||"var(--other)")+'">'+
         esc(lang==="zh"?seg.zh:seg.en)+'</span>' : '';
-      return '<a class="co" href="'+url+'" target="_blank" rel="noopener">'+
+      const links = finLinks(c).map(l=>'<a href="'+l.url+'" target="_blank" rel="noopener">'+l.label+'</a>').join("");
+      return '<div class="co">'+
         '<div class="nm">'+esc(nm)+'<span class="tk">'+esc(c.tk)+'</span></div>'+
         '<div class="tags">'+chip+'</div>'+
-        '<div class="fin">'+t("viewFin")+'</div></a>';
+        '<div class="fin">'+links+'</div></div>';
     }).join("")+'</div>';
   }
   $("#earnings").innerHTML = html || '<div class="empty">'+t("noCo")+'</div>';

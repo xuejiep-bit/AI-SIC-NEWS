@@ -394,7 +394,7 @@ function earnNavItem(k,label,n){
     '<span class="label"><span>'+label+'</span></span><span class="n">'+n+'</span></div>';
 }
 // 每家公司的财报链接（可多个）。美股给「官方文件(SEC EDGAR 原始申报)」+「财报数据(stockanalysis)」两个；
-// A股用同花顺 F10 财务页；港股用东方财富港股个股页（含财务）。
+// A股用同花顺 F10 财务页；港股用雪球个股页（含财报）。
 function finLinks(c){
   const zh = lang==="zh";
   if(c.mkt==="us") return [
@@ -405,7 +405,7 @@ function finLinks(c){
     {label:(zh?"查看财报":"Financials")+" →", url:"https://basic.10jqka.com.cn/"+c.tk+"/finance.html"},
   ];
   return [
-    {label:(zh?"查看财报":"Financials")+" →", url:"https://quote.eastmoney.com/hk/"+c.tk+".html"},
+    {label:(zh?"查看财报":"Financials")+" →", url:"https://xueqiu.com/S/"+c.tk},
   ];
 }
 function renderEarnings(){

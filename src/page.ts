@@ -391,11 +391,12 @@ function earnNavItem(k,label,n){
   return '<div class="navitem '+(earnMkt===k?'on':'')+'" data-mkt="'+k+'">'+
     '<span class="label"><span>'+label+'</span></span><span class="n">'+n+'</span></div>';
 }
-// 直达各公司「财务报表」页：美股用 stockanalysis 财报页，A股用同花顺 F10 财务页，港股用东方财富 F10 财务分析。
+// 直达各公司财报：美股用 SEC EDGAR 官方申报文件（10-K/10-Q/20-F 原始文件），
+// A股用同花顺 F10 财务页，港股用东方财富港股个股页（含财务）。
 function finUrl(c){
-  if(c.mkt==="us") return "https://stockanalysis.com/stocks/"+c.tk+"/financials/";
+  if(c.mkt==="us") return "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker="+c.tk+"&type=&dateb=&owner=include&count=40";
   if(c.mkt==="a")  return "https://basic.10jqka.com.cn/"+c.tk+"/finance.html";
-  return "https://emweb.securities.eastmoney.com/PC_HKF10/NewFinanceAnalysis/index?type=web&code="+c.tk;
+  return "https://quote.eastmoney.com/hk/"+c.tk+".html";
 }
 function renderEarnings(){
   const q = $("#q").value.trim().toLowerCase();

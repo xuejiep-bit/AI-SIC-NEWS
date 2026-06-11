@@ -113,6 +113,13 @@ export const YOUTUBE_CHANNELS: Feed[] = [
   YT("The Compound", "UCBRpqrzuuqE8TZcWw75JSdw", "video_invest"),
   YT("We Study Billionaires", "UCBOkqyWxbp8jtcsvcHB7qog", "video_invest"),
   YT("Prof G Markets", "UCp4CBeq4nzeg9smAvdjPrig", "video_invest"),
+  YT("Motley Fool Money", "UCUYUDxyeyCAo8Txyf354HQQ", "video_invest"),
+  YT("The Acquirers Podcast", "UCJ27FwJZ3hsMrPCviG5gCFg", "video_invest"),
+  YT("Top Traders Unplugged", "UCt-_RaV_mFlyXDmhYnIm0Ug", "video_invest"),
+  YT("Chat With Traders", "UCdnzT5Tl6pAkATOiDsPhqcg", "video_invest"),
+  YT("Unchained", "UCWiiMnsnw5Isc2PP1to9nNw", "video_invest"),
+  YT("Freakonomics Radio", "UCXjf7anLJA4NqUv8kPFIJWA", "video_invest"),
+  YT("Planet Money", "UCwlvY6_2iza-QkE5CIWpIFA", "video_invest"),
 ];
 
 // 抓取时统一遍历的全部源。YouTube 频道放在最前面：每个频道都是唯一的视频来源，

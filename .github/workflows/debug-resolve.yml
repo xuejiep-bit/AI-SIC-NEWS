@@ -1,0 +1,18 @@
+# 临时工具：解析 YouTube handle → 频道 ID（沙箱环境访问不了 YouTube，借 CI 跑一下）。用完即删。
+name: Resolve Channel ID
+
+on:
+  push:
+    branches: [claude/dreamy-cray-GFpRu]
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve BG2 Pod channel id
+        run: |
+          for h in Bg2Pod; do
+            echo "=== @$h ==="
+            curl -sL "https://www.youtube.com/@$h" | grep -o '"channelId":"UC[^"]*"' | head -3
+            curl -sL "https://www.youtube.com/@$h" | grep -o 'channel_id=UC[^"&]*' | head -3
+          done

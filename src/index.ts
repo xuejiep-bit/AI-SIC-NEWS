@@ -174,6 +174,8 @@ async function queryNews(env: Env, url: URL) {
 
   const where: string[] = ["layer != 'video'"]; // 资讯视图一律排除视频
   const binds: unknown[] = [];
+  // 国内版：剔除经 Google News 跳转的条目（news.google.com 在大陆无法打开，点了也白点）
+  if (url.searchParams.get("region") === "cn") where.push("link NOT LIKE '%news.google.com%'");
   if (layer && layer !== "all") { where.push("layer = ?"); binds.push(layer); }
   if (segment && segment !== "all") { where.push("segment = ?"); binds.push(segment); }
   if (lang && lang !== "all") { where.push("lang = ?"); binds.push(lang); }
@@ -195,8 +197,9 @@ async function queryNews(env: Env, url: URL) {
 async function queryStats(env: Env, url: URL) {
   const lang = url.searchParams.get("lang");
   const binds = lang && lang !== "all" ? [lang] : [];
-  // 资讯统计：排除视频，叠加语言过滤
+  // 资讯统计：排除视频，叠加语言过滤；国内版同步剔除 Google News 跳转条目，让侧栏计数与列表一致
   const conds = ["layer != 'video'"];
+  if (url.searchParams.get("region") === "cn") conds.push("link NOT LIKE '%news.google.com%'");
   if (lang && lang !== "all") conds.push("lang = ?");
   const cond = "WHERE " + conds.join(" AND ");
 
@@ -270,7 +273,13 @@ export default {
 
     try {
       if (path === "/" || path === "/index.html") {
-        return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+        // 按访问者所在国家选默认版本：中国大陆 IP 默认「国内版」，其余默认「国际版」。
+        // 前端仍可手动切换并记忆（localStorage），也可用 ?region=cn / ?region=global 直达。
+        const country = (request.cf as { country?: string } | undefined)?.country;
+        const region = country === "CN" ? "cn" : "global";
+        return new Response(PAGE_HTML.replaceAll("__REGION_DEFAULT__", region), {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
       }
       if (path === "/favicon.svg" || path === "/favicon.ico") {
         return new Response(FAVICON_SVG, {

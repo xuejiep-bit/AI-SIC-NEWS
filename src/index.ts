@@ -62,17 +62,22 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   const errors: string[] = [];
   const now = Date.now();
 
-  const results = await Promise.allSettled(
-    ALL_FEEDS.map(async (feed) => {
-      const res = await fetch(feed.url, {
-        headers: { "user-agent": "AI-SIC-News/0.1 (+https://github.com/xuejiep-bit/ai-sic-news)" },
-        cf: { cacheTtl: 300 },
-      });
-      if (!res.ok) throw new Error(`${feed.name}: HTTP ${res.status}`);
-      const xml = await res.text();
-      return { feed, items: parseFeed(xml) };
-    }),
-  );
+  // 分批抓取（每批 BATCH 个），降低对 YouTube 等站点的瞬时并发、减少被限流的概率。
+  const fetchOne = async (feed: typeof ALL_FEEDS[number]) => {
+    const res = await fetch(feed.url, {
+      headers: { "user-agent": "AI-SIC-News/0.1 (+https://github.com/xuejiep-bit/ai-sic-news)" },
+      cf: { cacheTtl: 300 },
+    });
+    if (!res.ok) throw new Error(`${feed.name}: HTTP ${res.status}`);
+    const xml = await res.text();
+    return { feed, items: parseFeed(xml) };
+  };
+  const BATCH = 8;
+  const results: PromiseSettledResult<{ feed: typeof ALL_FEEDS[number]; items: ReturnType<typeof parseFeed> }>[] = [];
+  for (let i = 0; i < ALL_FEEDS.length; i += BATCH) {
+    const batch = ALL_FEEDS.slice(i, i + BATCH);
+    results.push(...await Promise.allSettled(batch.map(fetchOne)));
+  }
 
   // 收集并按 id 去重（同一次抓取内）
   const candidates = new Map<string, Row>();

@@ -111,5 +111,7 @@ export const YOUTUBE_CHANNELS: Feed[] = [
   YT("All-In Podcast", "UCESLZhusAkFfsNsApnjF_Cg", "video_invest"),
 ];
 
-// 抓取时统一遍历的全部源
-export const ALL_FEEDS: Feed[] = [...FEEDS, ...YOUTUBE_CHANNELS];
+// 抓取时统一遍历的全部源。YouTube 频道放在最前面：每个频道都是唯一的视频来源，
+// 而 Worker 单次请求有出站次数/CPU 上限，源太多时队尾会被截断；新闻源彼此高度重叠、
+// 少抓几个影响不大，视频频道却不能丢，故优先保证视频被抓到。
+export const ALL_FEEDS: Feed[] = [...YOUTUBE_CHANNELS, ...FEEDS];

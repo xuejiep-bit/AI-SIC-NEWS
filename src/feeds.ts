@@ -105,8 +105,6 @@ export const YOUTUBE_CHANNELS: Feed[] = [
   YT("ColdFusion", "UC4QZ_LsYcvcq7qOsOhpAX4A"),
   YT("Marques Brownlee", "UCBJycsmduvYEL83R_U4JriQ"),
   // ── 财经 / 投资（归入「投资视频」栏目）──
-  YT("Bloomberg TV", "UCIALMKvObZNtJ6AmdCLP7Lg", "video_invest"),
-  YT("Bloomberg Originals", "UCUMZ7gohGI9HcU9VNsr2FJQ", "video_invest"),
   YT("Bloomberg Podcasts", "UChF5O40UBqAc82I7-i5ig6A", "video_invest"),
   YT("All-In Podcast", "UCESLZhusAkFfsNsApnjF_Cg", "video_invest"),
 ];

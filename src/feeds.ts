@@ -107,6 +107,12 @@ export const YOUTUBE_CHANNELS: Feed[] = [
   // ── 财经 / 投资（归入「投资视频」栏目）──
   YT("Bloomberg Podcasts", "UChF5O40UBqAc82I7-i5ig6A", "video_invest"),
   YT("All-In Podcast", "UCESLZhusAkFfsNsApnjF_Cg", "video_invest"),
+  YT("BG2 Pod", "UC-yRDvpR99LUc5l7i7jLzew", "video_invest"),
+  YT("Acquired", "UCyFqFYfTW2VoIQKylJ04Rtw", "video_invest"),
+  YT("Invest Like the Best", "UCpQBb0fToph3jrDulwz1iUQ", "video_invest"),
+  YT("The Compound", "UCBRpqrzuuqE8TZcWw75JSdw", "video_invest"),
+  YT("We Study Billionaires", "UCBOkqyWxbp8jtcsvcHB7qog", "video_invest"),
+  YT("Prof G Markets", "UCp4CBeq4nzeg9smAvdjPrig", "video_invest"),
 ];
 
 // 抓取时统一遍历的全部源。YouTube 频道放在最前面：每个频道都是唯一的视频来源，

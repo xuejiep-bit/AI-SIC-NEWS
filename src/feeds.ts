@@ -95,6 +95,7 @@ const YT = (name: string, channelId: string): Feed => ({
 });
 
 export const YOUTUBE_CHANNELS: Feed[] = [
+  // ── AI / 科技 ──
   YT("Two Minute Papers", "UCbfYPyITQ-7l4upoX8nvctg"),
   YT("Lex Fridman", "UCSHZKyawb77ixDdsGog4iWA"),
   YT("3Blue1Brown", "UCYO_jab_esuFRV4b17AJtAw"),
@@ -103,6 +104,11 @@ export const YOUTUBE_CHANNELS: Feed[] = [
   YT("sentdex", "UCfzlCWGWYyIQ0aLC5w48gBQ"),
   YT("ColdFusion", "UC4QZ_LsYcvcq7qOsOhpAX4A"),
   YT("Marques Brownlee", "UCBJycsmduvYEL83R_U4JriQ"),
+  // ── 财经 / 投资 ──
+  YT("Bloomberg TV", "UCIALMKvObZNtJ6AmdCLP7Lg"),
+  YT("Bloomberg Originals", "UCUMZ7gohGI9HcU9VNsr2FJQ"),
+  YT("Bloomberg Podcasts", "UChF5O40UBqAc82I7-i5ig6A"),
+  YT("All-In Podcast", "UCESLZhusAkFfsNsApnjF_Cg"),
 ];
 
 // 抓取时统一遍历的全部源

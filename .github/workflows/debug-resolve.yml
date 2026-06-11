@@ -1,4 +1,4 @@
-# 临时工具：解析 YouTube handle → 频道 ID（沙箱环境访问不了 YouTube，借 CI 跑一下）。用完即删。
+# 临时工具：检查 YouTube 频道 RSS 的最新发布时间（沙箱访问不了 YouTube，借 CI 跑）。用完即删。
 name: Resolve Channel ID
 
 on:
@@ -9,10 +9,9 @@ jobs:
   resolve:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve BG2 Pod channel id
+      - name: Check BG2 RSS entries
         run: |
-          for h in Bg2Pod; do
-            echo "=== @$h ==="
-            curl -sL "https://www.youtube.com/@$h" | grep -o '"channelId":"UC[^"]*"' | head -3
-            curl -sL "https://www.youtube.com/@$h" | grep -o 'channel_id=UC[^"&]*' | head -3
-          done
+          curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=UC-yRDvpR99LUc5l7i7jLzew" -o /tmp/f.xml
+          echo "HTTP size: $(wc -c < /tmp/f.xml)"
+          grep -o "<title>[^<]*</title>" /tmp/f.xml | head -5
+          grep -o "<published>[^<]*</published>" /tmp/f.xml | head -8

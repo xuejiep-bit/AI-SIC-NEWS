@@ -7,7 +7,7 @@ export interface Feed {
   name: string;
   url: string;
   lang: "zh" | "en";
-  kind?: "news" | "video"; // 默认 news；video 表示 YouTube 频道，归入「AI 视频」分类
+  kind?: "news" | "video" | "video_invest"; // 默认 news；video = AI/科技视频，video_invest = 财经/投资视频
 }
 
 // 用 Google News 站内检索某来源里「AI 产业链」相关报道（拿标题+链接，正文跳原站）。
@@ -87,11 +87,11 @@ export const FEEDS: Feed[] = [
 // 用 YouTube 官方频道 RSS 抓取最新视频的标题+链接，归入「AI 视频」分类。
 // 想增删频道：拿到频道的 channel_id（UC 开头），按下面格式加一行即可。
 // channel_id 获取方法：打开频道主页 → 查看网页源代码搜 "channelId"，或用第三方工具。
-const YT = (name: string, channelId: string): Feed => ({
+const YT = (name: string, channelId: string, kind: "video" | "video_invest" = "video"): Feed => ({
   name,
   url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
   lang: "en",
-  kind: "video",
+  kind,
 });
 
 export const YOUTUBE_CHANNELS: Feed[] = [
@@ -104,11 +104,11 @@ export const YOUTUBE_CHANNELS: Feed[] = [
   YT("sentdex", "UCfzlCWGWYyIQ0aLC5w48gBQ"),
   YT("ColdFusion", "UC4QZ_LsYcvcq7qOsOhpAX4A"),
   YT("Marques Brownlee", "UCBJycsmduvYEL83R_U4JriQ"),
-  // ── 财经 / 投资 ──
-  YT("Bloomberg TV", "UCIALMKvObZNtJ6AmdCLP7Lg"),
-  YT("Bloomberg Originals", "UCUMZ7gohGI9HcU9VNsr2FJQ"),
-  YT("Bloomberg Podcasts", "UChF5O40UBqAc82I7-i5ig6A"),
-  YT("All-In Podcast", "UCESLZhusAkFfsNsApnjF_Cg"),
+  // ── 财经 / 投资（归入「投资视频」栏目）──
+  YT("Bloomberg TV", "UCIALMKvObZNtJ6AmdCLP7Lg", "video_invest"),
+  YT("Bloomberg Originals", "UCUMZ7gohGI9HcU9VNsr2FJQ", "video_invest"),
+  YT("Bloomberg Podcasts", "UChF5O40UBqAc82I7-i5ig6A", "video_invest"),
+  YT("All-In Podcast", "UCESLZhusAkFfsNsApnjF_Cg", "video_invest"),
 ];
 
 // 抓取时统一遍历的全部源

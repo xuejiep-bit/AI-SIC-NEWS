@@ -230,10 +230,12 @@ let lang = localStorage.getItem("lang") || "zh";
 // 手动切换后记忆在 localStorage；?region=cn / ?region=global 可直达指定版本。
 let region = localStorage.getItem("region") || "__REGION_DEFAULT__";
 if(region!=="cn" && region!=="global") region = "global";
+// sel.video：false 或具体视频 layer（"video" = AI 视频，"video_invest" = 投资视频）
 let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false };
 let counts = {};
 let investCount = 0;
 let videoCount = 0;
+let vinvestCount = 0;
 let noteList = [];   // 投资视频解读（/api/vidnotes，人工精选内容；为空时隐藏栏目）
 let view = "news";       // "news" | "earnings"
 let earnMkt = "all";     // 财报视图的市场筛选
@@ -246,7 +248,7 @@ let earnMkt = "all";     // 财报视图的市场筛选
   const rg = sp.get("region"); if(rg==="cn"||rg==="global"){ region = rg; localStorage.setItem("region",rg); }
   if(sp.get("invest")==="1"){ sel.invest = true; }
   else if(sp.get("notes")==="1"){ sel.notes = true; }
-  else if(sp.get("layer")==="video"){ sel.video = true; }
+  else if(sp.get("layer")==="video"||sp.get("layer")==="video_invest"){ sel.video = sp.get("layer"); }
   else {
     if(sp.get("layer")) sel.layer = sp.get("layer");
     if(sp.get("segment")) sel.segment = sp.get("segment");
@@ -275,11 +277,15 @@ function renderNav(){
   html += '<div class="navitem '+(sel.invest?'on':'')+'" data-invest="1">'+
     '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+invLabel+'</span></span>'+
     '<span class="n">'+(investCount||0)+'</span></div>';
-  if(region!=="cn"){ // 国内版不显示「AI 视频」（YouTube 在大陆打不开）
+  if(region!=="cn"){ // 国内版不显示视频栏目（YouTube 在大陆打不开）
     const vidLabel = lang==="zh" ? "📺 AI 视频" : "📺 AI Videos";
-    html += '<div class="navitem '+(sel.video?'on':'')+'" data-video="1">'+
+    html += '<div class="navitem '+(sel.video==="video"?'on':'')+'" data-video="video">'+
       '<span class="label"><span class="dot" style="background:var(--video)"></span><span>'+vidLabel+'</span></span>'+
       '<span class="n">'+(videoCount||0)+'</span></div>';
+    const viLabel = lang==="zh" ? "📈 投资视频" : "📈 Invest Videos";
+    html += '<div class="navitem '+(sel.video==="video_invest"?'on':'')+'" data-video="video_invest">'+
+      '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+viLabel+'</span></span>'+
+      '<span class="n">'+(vinvestCount||0)+'</span></div>';
   }
   if(noteList.length){ // 投资视频解读：文字总结两个版本都能看，有内容才显示
     const ntLabel = lang==="zh" ? "🎬 投资视频解读" : "🎬 Video Notes";
@@ -301,7 +307,7 @@ function renderNav(){
   nav.querySelectorAll(".navitem").forEach(el=>{
     el.onclick = ()=>{
       if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true, video:false, notes:false}; }
-      else if(el.dataset.video){ sel={layer:"all", segment:"all", invest:false, video:true, notes:false}; }
+      else if(el.dataset.video){ sel={layer:"all", segment:"all", invest:false, video:el.dataset.video, notes:false}; }
       else if(el.dataset.notes){ sel={layer:"all", segment:"all", invest:false, video:false, notes:true}; }
       else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false, video:false, notes:false}; }
       renderNav(); load();
@@ -324,6 +330,7 @@ async function loadStats(){
     (d.breakdown||[]).forEach(row=>{ counts[(row.layer||"other")+"/"+(row.segment||"_")]=row.n; });
     investCount = d.invest||0;
     videoCount = d.video||0;
+    vinvestCount = d.videoInvest||0;
     renderNav();
   }catch(e){}
 }
@@ -333,7 +340,7 @@ async function load(){
   $("#status").textContent = t("loading");
   const p = new URLSearchParams();
   if(sel.invest){ p.set("invest","1"); }
-  else if(sel.video){ p.set("layer","video"); }
+  else if(sel.video){ p.set("layer", sel.video); }
   else {
     if(sel.layer!=="all") p.set("layer", sel.layer);
     if(sel.segment!=="all") p.set("segment", sel.segment);
@@ -373,6 +380,8 @@ function renderCards(items){
     let segLabel, color;
     if(a.layer==="video"){
       segLabel = lang==="zh" ? "📺 视频" : "📺 Video"; color = "var(--video)";
+    } else if(a.layer==="video_invest"){
+      segLabel = lang==="zh" ? "📈 投资视频" : "📈 Invest Video"; color = "var(--invest)";
     } else {
       const seg = SEGLABEL[a.segment];
       segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : (lang==="zh"?"行业动态":"Industry");

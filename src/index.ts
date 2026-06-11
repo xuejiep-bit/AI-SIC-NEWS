@@ -47,10 +47,14 @@ const json = (data: unknown, status = 200) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
+// 视频类 layer：video = AI/科技视频，video_invest = 财经/投资视频。两者都不进产业链分类。
+const VIDEO_LAYERS = ["video", "video_invest"] as const;
+const NOT_VIDEO = `layer NOT IN ('video','video_invest')`;
+
 interface Row {
   id: string; title: string; titleZh: string | null; titleKey: string; link: string;
   summary: string; source: string; lang: string; layer: string; segment: string | null;
-  score: number; publishedAt: number; isVideo: boolean;
+  score: number; publishedAt: number; videoLayer: string | null;
 }
 
 // ── 抓取 + 分类 + 入库 ────────────────────────────────
@@ -84,7 +88,8 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
         id, title: it.title, titleZh: feed.lang === "zh" ? it.title : null,
         titleKey: titleKey(it.title), link: it.link, summary: it.summary,
         source: feed.name, lang: feed.lang, layer: "other", segment: null,
-        score: 0, publishedAt: it.publishedAt ?? now, isVideo: feed.kind === "video",
+        score: 0, publishedAt: it.publishedAt ?? now,
+        videoLayer: feed.kind === "video" || feed.kind === "video_invest" ? feed.kind : null,
       });
     }
   }
@@ -100,16 +105,16 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   }
   const newItems = [...candidates.values()].filter((r) => !existing.has(r.id));
 
-  // 视频归入 video 分类，不进产业链；其余走关键词分类（基线 + AI 失败时的回退）
+  // 视频按频道类型归入 video / video_invest，不进产业链；其余走关键词分类（基线 + AI 失败时的回退）
   for (const r of newItems) {
-    if (r.isVideo) { r.layer = "video"; r.segment = null; continue; }
+    if (r.videoLayer) { r.layer = r.videoLayer; r.segment = null; continue; }
     const c = classify(r.title, r.summary);
     r.layer = c.layer; r.segment = c.segment; r.score = c.score;
   }
 
   // 可选：Claude 语义分类 + 中文标题翻译，覆盖关键词结果（仅资讯，不含视频）
   let aiUsed = false;
-  const aiItems = newItems.filter((r) => !r.isVideo);
+  const aiItems = newItems.filter((r) => !r.videoLayer);
   if (aiEnabled(env) && aiItems.length > 0) {
     try {
       const inputs: AiInput[] = aiItems.map((r) => ({ title: r.title, summary: r.summary, lang: r.lang }));
@@ -144,6 +149,14 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
     upserted += res.reduce((n, r) => n + (r.meta?.changes ?? 0), 0);
   }
 
+  // 自愈：频道分组调整后，把存量视频迁到所属栏目（按来源名匹配，每小时一次开销可忽略）
+  const investSources = ALL_FEEDS.filter((f) => f.kind === "video_invest").map((f) => f.name);
+  if (investSources.length) {
+    const ph = investSources.map(() => "?").join(",");
+    await env.DB.prepare(`UPDATE articles SET layer='video_invest' WHERE layer='video' AND source IN (${ph})`)
+      .bind(...investSources).run();
+  }
+
   // 数据保留：清理过期文章
   let deleted = 0;
   const retentionDays = parseInt(env.RETENTION_DAYS || "30", 10);
@@ -164,16 +177,16 @@ async function queryNews(env: Env, url: URL) {
   const q = url.searchParams.get("q");
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "60", 10) || 60, 200);
 
-  // 「AI 视频」视图：只看 YouTube 视频，忽略语言/环节过滤（视频自成一类）
-  if (layer === "video") {
+  // 视频视图（AI 视频 / 投资视频）：只看对应频道组，忽略语言/环节过滤（视频自成一类）
+  if (layer && (VIDEO_LAYERS as readonly string[]).includes(layer)) {
     const { results } = await env.DB.prepare(
       `SELECT id, title, title_zh, link, summary, source, lang, layer, segment, published_at
-       FROM articles WHERE layer = 'video' ORDER BY published_at DESC LIMIT ?`,
-    ).bind(limit).all();
+       FROM articles WHERE layer = ? ORDER BY published_at DESC LIMIT ?`,
+    ).bind(layer, limit).all();
     return results;
   }
 
-  const where: string[] = ["layer != 'video'"]; // 资讯视图一律排除视频
+  const where: string[] = [NOT_VIDEO]; // 资讯视图一律排除视频
   const binds: unknown[] = [];
   // 国内版：剔除经 Google News 跳转的条目（news.google.com 在大陆无法打开，点了也白点）
   if (url.searchParams.get("region") === "cn") where.push("link NOT LIKE '%news.google.com%'");
@@ -199,7 +212,7 @@ async function queryStats(env: Env, url: URL) {
   const lang = url.searchParams.get("lang");
   const binds = lang && lang !== "all" ? [lang] : [];
   // 资讯统计：排除视频，叠加语言过滤；国内版同步剔除 Google News 跳转条目，让侧栏计数与列表一致
-  const conds = ["layer != 'video'"];
+  const conds = [NOT_VIDEO];
   if (url.searchParams.get("region") === "cn") conds.push("link NOT LIKE '%news.google.com%'");
   if (lang && lang !== "all") conds.push("lang = ?");
   const cond = "WHERE " + conds.join(" AND ");
@@ -213,17 +226,20 @@ async function queryStats(env: Env, url: URL) {
   const investRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles ${cond} AND ${investClause()}`)
     .bind(...binds).first<{ n: number }>();
 
-  // 「AI 视频」计数（不分语言）
+  // 「AI 视频」「投资视频」计数（不分语言）
   const videoRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles WHERE layer = 'video'`)
     .first<{ n: number }>();
+  const videoInvestRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM articles WHERE layer = 'video_invest'`)
+    .first<{ n: number }>();
 
-  return { total: total?.n ?? 0, invest: investRow?.n ?? 0, video: videoRow?.n ?? 0, breakdown: results };
+  return { total: total?.n ?? 0, invest: investRow?.n ?? 0, video: videoRow?.n ?? 0,
+    videoInvest: videoInvestRow?.n ?? 0, breakdown: results };
 }
 
 // 用关键词分类重新归类全部资讯（视频除外）。分类体系调整后跑一次，把存量文章重分到新板块。
 async function reclassifyAll(env: Env): Promise<{ scanned: number; updated: number }> {
   const { results } = await env.DB.prepare(
-    `SELECT id, title, summary FROM articles WHERE layer != 'video'`,
+    `SELECT id, title, summary FROM articles WHERE ${NOT_VIDEO}`,
   ).all<{ id: string; title: string; summary: string }>();
   const stmt = env.DB.prepare(`UPDATE articles SET layer = ?, segment = ?, score = ? WHERE id = ?`);
   const batch = results.map((r) => {
@@ -247,6 +263,7 @@ function sitemapXml(origin: string): string {
   for (const L of LAYERS) if (L.key !== "other") urls.push(`${origin}/?layer=${L.key}`);
   urls.push(`${origin}/?invest=1`);
   urls.push(`${origin}/?layer=video`);
+  urls.push(`${origin}/?layer=video_invest`);
   for (const s of SEGMENTS) urls.push(`${origin}/?segment=${s.key}`);
   const body = urls
     .map((u) => `  <url><loc>${u}</loc><lastmod>${today}</lastmod><changefreq>hourly</changefreq></url>`)

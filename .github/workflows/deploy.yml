@@ -7,7 +7,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/dreamy-cray-GFpRu]
   workflow_dispatch:
 
 jobs:

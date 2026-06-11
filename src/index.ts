@@ -5,6 +5,7 @@ import { aiClassify, type AiInput } from "./ai";
 import { investClause } from "./invest";
 import { LAYERS, SEGMENTS } from "./taxonomy";
 import { PAGE_HTML } from "./page";
+import { VID_NOTES } from "./vidnotes";
 
 export interface Env {
   DB: D1Database;
@@ -292,6 +293,7 @@ export default {
       if (path === "/robots.txt") {
         return new Response(robotsTxt(url.origin), { headers: { "content-type": "text/plain; charset=utf-8" } });
       }
+      if (path === "/api/vidnotes") return json(VID_NOTES);
       if (path === "/api/news") return json(await queryNews(env, url));
       if (path === "/api/stats") return json(await queryStats(env, url));
       if (path === "/api/refresh") {

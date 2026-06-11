@@ -58,6 +58,11 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .tags { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:11px; color:var(--dim); margin-top:2px; }
   .chip { padding:2px 8px; border-radius:20px; font-weight:600; color:#fff; }
   .empty { color:var(--dim); text-align:center; padding:60px 0; }
+  .cards.notes { grid-template-columns:1fr; max-width:820px; }
+  .card.note .pts { margin:4px 0 0; padding-left:20px; color:var(--txt); font-size:13px; line-height:1.7; }
+  .card.note .pts li::marker { color:var(--invest); }
+  .card.note .full { color:var(--dim); font-size:13px; line-height:1.7; border-top:1px solid var(--line); padding-top:8px; margin-top:4px; }
+  .card.note .full p { margin:0 0 8px; }
   .mkt { margin:24px 0 10px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:8px; }
   .mkt .n { color:var(--dim); font-weight:400; font-size:12px; }
   .co { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px;
@@ -225,10 +230,11 @@ let lang = localStorage.getItem("lang") || "zh";
 // 手动切换后记忆在 localStorage；?region=cn / ?region=global 可直达指定版本。
 let region = localStorage.getItem("region") || "__REGION_DEFAULT__";
 if(region!=="cn" && region!=="global") region = "global";
-let sel = { layer:"all", segment:"all", invest:false, video:false };
+let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false };
 let counts = {};
 let investCount = 0;
 let videoCount = 0;
+let noteList = [];   // 投资视频解读（/api/vidnotes，人工精选内容；为空时隐藏栏目）
 let view = "news";       // "news" | "earnings"
 let earnMkt = "all";     // 财报视图的市场筛选
 
@@ -239,6 +245,7 @@ let earnMkt = "all";     // 财报视图的市场筛选
   const l = sp.get("lang"); if(l==="en"||l==="zh") lang = l;
   const rg = sp.get("region"); if(rg==="cn"||rg==="global"){ region = rg; localStorage.setItem("region",rg); }
   if(sp.get("invest")==="1"){ sel.invest = true; }
+  else if(sp.get("notes")==="1"){ sel.notes = true; }
   else if(sp.get("layer")==="video"){ sel.video = true; }
   else {
     if(sp.get("layer")) sel.layer = sp.get("layer");
@@ -274,6 +281,12 @@ function renderNav(){
       '<span class="label"><span class="dot" style="background:var(--video)"></span><span>'+vidLabel+'</span></span>'+
       '<span class="n">'+(videoCount||0)+'</span></div>';
   }
+  if(noteList.length){ // 投资视频解读：文字总结两个版本都能看，有内容才显示
+    const ntLabel = lang==="zh" ? "🎬 投资视频解读" : "🎬 Video Notes";
+    html += '<div class="navitem '+(sel.notes?'on':'')+'" data-notes="1">'+
+      '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+ntLabel+'</span></span>'+
+      '<span class="n">'+noteList.length+'</span></div>';
+  }
   html += '</div>';
   for(const L of TAX){
     html += '<div class="group">';
@@ -287,15 +300,16 @@ function renderNav(){
   nav.innerHTML = html;
   nav.querySelectorAll(".navitem").forEach(el=>{
     el.onclick = ()=>{
-      if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true, video:false}; }
-      else if(el.dataset.video){ sel={layer:"all", segment:"all", invest:false, video:true}; }
-      else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false, video:false}; }
+      if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true, video:false, notes:false}; }
+      else if(el.dataset.video){ sel={layer:"all", segment:"all", invest:false, video:true, notes:false}; }
+      else if(el.dataset.notes){ sel={layer:"all", segment:"all", invest:false, video:false, notes:true}; }
+      else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false, video:false, notes:false}; }
       renderNav(); load();
     };
   });
 }
 function navItem(layer,segment,label,n,color,sub){
-  const on = !sel.invest && !sel.video && sel.layer===layer && sel.segment===segment;
+  const on = !sel.invest && !sel.video && !sel.notes && sel.layer===layer && sel.segment===segment;
   const dot = color ? '<span class="dot" style="background:'+color+'"></span>' : '';
   return '<div class="navitem '+(sub?'sub-seg ':'')+(on?'on':'')+'" data-layer="'+layer+'" data-segment="'+segment+'">'+
     '<span class="label">'+dot+'<span>'+label+'</span></span><span class="n">'+(n||0)+'</span></div>';
@@ -315,6 +329,7 @@ async function loadStats(){
 }
 
 async function load(){
+  if(sel.notes){ renderNotes(); return; }
   $("#status").textContent = t("loading");
   const p = new URLSearchParams();
   if(sel.invest){ p.set("invest","1"); }
@@ -352,6 +367,7 @@ function timeAgo(ms){
 
 function renderCards(items){
   const box = $("#cards");
+  box.classList.remove("notes");
   $("#empty").style.display = items.length? "none":"block";
   box.innerHTML = items.map(a=>{
     let segLabel, color;
@@ -373,6 +389,37 @@ function renderCards(items){
   }).join("");
 }
 function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ── 投资视频解读 ─────────────────────────────────────
+async function loadNotes(){
+  try{
+    const r = await fetch("/api/vidnotes"); const d = await r.json();
+    if(Array.isArray(d)){ noteList = d; renderNav(); if(sel.notes) renderNotes(); }
+  }catch(e){}
+}
+function renderNotes(){
+  const box = $("#cards");
+  box.classList.add("notes");
+  $("#status").textContent = "";
+  const q = $("#q").value.trim().toLowerCase();
+  let list = noteList;
+  if(q) list = list.filter(n=>(n.title+n.videoTitle+n.channel+n.summary+
+    (n.takeaways||[]).join("")+(n.tickers||[]).join("")).toLowerCase().includes(q));
+  $("#empty").style.display = list.length? "none":"block";
+  $("#count").textContent = I18N[lang].count(list.length);
+  box.innerHTML = list.map(n=>{
+    const tks = (n.tickers||[]).map(tk=>'<span class="chip" style="background:var(--invest)">'+esc(tk)+'</span>').join("");
+    const pts = (n.takeaways||[]).map(p=>'<li>'+esc(p)+'</li>').join("");
+    const paras = (n.summary||"").split("\\n").filter(s=>s.trim()).map(s=>'<p>'+esc(s)+'</p>').join("");
+    return '<div class="card note">'+
+      '<a class="t" href="'+n.url+'" target="_blank" rel="noopener">🎬 '+esc(n.title)+'</a>'+
+      '<div class="tags">'+tks+'<span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
+      '<span>·</span><span>'+esc(n.videoTitle)+'</span></div>'+
+      (pts?'<ul class="pts">'+pts+'</ul>':'')+
+      '<div class="full">'+paras+'</div>'+
+      '</div>';
+  }).join("");
+}
 
 // ── 公司财报视图 ─────────────────────────────────────
 function setView(v){
@@ -457,7 +504,7 @@ $("#langBtn").onclick = ()=>{
 };
 $("#regionBtn").onclick = ()=>{
   region = region==="cn"?"global":"cn"; localStorage.setItem("region",region);
-  if(region==="cn" && sel.video){ sel = {layer:"all", segment:"all", invest:false, video:false}; }
+  if(region==="cn" && sel.video){ sel = {layer:"all", segment:"all", invest:false, video:false, notes:false}; }
   applyI18n();
   if(view==="earnings"){ renderEarnNav(); renderEarnings(); }
   else { loadStats(); load(); }
@@ -472,7 +519,7 @@ $("#refreshBtn").onclick = async ()=>{
 };
 
 const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
-applyI18n(); loadStats(); load();
+applyI18n(); loadStats(); loadNotes(); load();
 </script>
 </body>
 </html>`;

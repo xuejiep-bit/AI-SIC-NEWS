@@ -6,13 +6,17 @@ import { investClause } from "./invest";
 import { LAYERS, SEGMENTS } from "./taxonomy";
 import { PAGE_HTML } from "./page";
 import { VID_NOTES } from "./vidnotes";
+import { runTranslate } from "./translate";
 
 export interface Env {
   DB: D1Database;
+  AI: Ai;                   // Cloudflare Workers AI 绑定（模块2 英文资讯翻译用）
   REFRESH_TOKEN?: string;
   ANTHROPIC_API_KEY?: string;
   USE_AI?: string;          // "1" / "true" 开启 Claude 语义分类+翻译
   AI_MODEL?: string;        // 默认 claude-opus-4-8
+  AI_TRANSLATE_MODEL?: string; // Workers AI 翻译模型，默认 @cf/meta/llama-3.1-8b-instruct-fast
+  TRANSLATE_PER_RUN?: string;  // 每轮翻译条数上限，默认 20
   RETENTION_DAYS?: string;  // 保留天数，默认 30；<=0 表示不清理
 }
 
@@ -55,6 +59,8 @@ interface Row {
   id: string; title: string; titleZh: string | null; titleKey: string; link: string;
   summary: string; source: string; lang: string; layer: string; segment: string | null;
   score: number; publishedAt: number; videoLayer: string | null;
+  region: string;          // 'cn'(国内) | 'global'(国际)
+  translateStatus: string; // 'done'(中文源/视频无需翻译) | 'pending'(英文资讯待翻译)
 }
 
 // ── 抓取 + 分类 + 入库 ────────────────────────────────
@@ -89,12 +95,16 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
       fetched++;
       const id = hashId(it.link);
       if (candidates.has(id)) continue;
+      const vlayer = feed.kind === "video" || feed.kind === "video_invest" ? feed.kind : null;
       candidates.set(id, {
         id, title: it.title, titleZh: feed.lang === "zh" ? it.title : null,
         titleKey: titleKey(it.title), link: it.link, summary: it.summary,
         source: feed.name, lang: feed.lang, layer: "other", segment: null,
         score: 0, publishedAt: it.publishedAt ?? now,
-        videoLayer: feed.kind === "video" || feed.kind === "video_invest" ? feed.kind : null,
+        videoLayer: vlayer,
+        // 地区标签：中文源=国内，其余=国际。翻译状态：中文源/视频无需翻译记 done，英文资讯记 pending 待翻译。
+        region: feed.lang === "zh" ? "cn" : "global",
+        translateStatus: vlayer || feed.lang === "zh" ? "done" : "pending",
       });
     }
   }
@@ -140,11 +150,15 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   // 入库：id 主键 + title_key 唯一，OR IGNORE 同时实现链接去重与跨源标题去重
   const stmt = env.DB.prepare(
     `INSERT OR IGNORE INTO articles
-       (id, title, title_zh, title_key, link, summary, source, lang, layer, segment, score, published_at, fetched_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, title, title_zh, title_key, link, summary, source, lang, layer, segment, score, published_at, fetched_at,
+        region, summary_zh, translate_status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const batch = newItems.map((a) =>
-    stmt.bind(a.id, a.title, a.titleZh, a.titleKey, a.link, a.summary, a.source, a.lang, a.layer, a.segment, a.score, a.publishedAt, now),
+    stmt.bind(
+      a.id, a.title, a.titleZh, a.titleKey, a.link, a.summary, a.source, a.lang, a.layer, a.segment, a.score, a.publishedAt, now,
+      a.region, a.lang === "zh" ? a.summary : null, a.translateStatus,
+    ),
   );
   let upserted = 0;
   for (let i = 0; i < batch.length; i += 50) {
@@ -185,7 +199,7 @@ async function queryNews(env: Env, url: URL) {
   // 视频视图（AI 视频 / 投资视频）：只看对应频道组，忽略语言/环节过滤（视频自成一类）
   if (layer && (VIDEO_LAYERS as readonly string[]).includes(layer)) {
     const { results } = await env.DB.prepare(
-      `SELECT id, title, title_zh, link, summary, source, lang, layer, segment, published_at
+      `SELECT id, title, title_zh, summary_zh, region, translate_status, link, summary, source, lang, layer, segment, published_at
        FROM articles WHERE layer = ? ORDER BY published_at DESC LIMIT ?`,
     ).bind(layer, limit).all();
     return results;
@@ -204,7 +218,7 @@ async function queryNews(env: Env, url: URL) {
   }
 
   const sql =
-    `SELECT id, title, title_zh, link, summary, source, lang, layer, segment, published_at
+    `SELECT id, title, title_zh, summary_zh, region, translate_status, link, summary, source, lang, layer, segment, published_at
      FROM articles ${where.length ? "WHERE " + where.join(" AND ") : ""}
      ORDER BY published_at DESC LIMIT ?`;
   binds.push(limit);
@@ -329,14 +343,28 @@ export default {
         }
         return json({ ok: true, ...(await reclassifyAll(env)) });
       }
+      if (path === "/api/translate") {
+        // 手动触发一轮英文资讯翻译（令牌保护）。定时任务每小时会自动执行此逻辑。
+        const token = env.REFRESH_TOKEN || "";
+        if (token) {
+          const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
+          if (provided !== token) return json({ error: "unauthorized" }, 401);
+        }
+        return json({ ok: true, ...(await runTranslate(env)) });
+      }
       return json({ error: "not found" }, 404);
     } catch (err) {
       return json({ error: String(err) }, 500);
     }
   },
 
-  // Cron 定时触发：抓取并入库
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(ingest(env).then((s) => console.log("ingest", JSON.stringify(s))));
+  // Cron 定时触发。两个时间分开，避免抓取与翻译挤在同一次调用里撞到单次请求的子请求上限：
+  //   "0 * * * *"（整点）→ 抓取入库；"30 * * * *"（半点）→ 翻译英文资讯。
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (event.cron === "30 * * * *") {
+      ctx.waitUntil(runTranslate(env).then((s) => console.log("translate", JSON.stringify(s))));
+    } else {
+      ctx.waitUntil(ingest(env).then((s) => console.log("ingest", JSON.stringify(s))));
+    }
   },
 };

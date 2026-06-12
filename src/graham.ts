@@ -63,9 +63,12 @@ function checkG4(divs: ChartData["dividends"]): Check {
     if (years[i] - years[i - 1] === 1) consecutive++;
     else break;
   }
+  // 分红窗口为近 16 年（见 finance.ts），连续年数到达窗口上限时标注"16+"
+  const capped = consecutive >= years.length && years.length >= 15;
   return {
     ok: consecutive >= 10,
     consecutive_years: consecutive,
+    capped,
     first_year: years[years.length - consecutive],
     last_year: years[years.length - 1],
     total_records: years.length,
@@ -251,10 +254,10 @@ function sectionG4(r: Check): string {
   } else {
     body = `| 指标 | 数值 |
 |---|---:|
-| 最近连续分红年数 | **${cons} 年** |
-| 起始年份 | ${r.first_year} |
+| 最近连续分红年数 | **${cons}${r.capped ? "+" : ""} 年**${r.capped ? " (达统计窗口上限, 实际可能更长)" : ""} |
+| 起始年份 | ${r.first_year}${r.capped ? " (窗口内)" : ""} |
 | 最近分红年份 | ${r.last_year} |
-| 有分红的年份总数 | ${r.total_records} 年 |
+| 近 16 年有分红的年份数 | ${r.total_records} 年 |
 
 ### ${sig(r.ok)}
 

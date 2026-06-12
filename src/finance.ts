@@ -27,9 +27,14 @@ export interface ChartData {
   dividends: { date: Date; amount: number }[]; // 全量分红（按时间升序）
 }
 
-// 现价 + 币种 + 公司名 + 全量分红（range=max 月线，载荷小且分红齐全）
+// 现价 + 币种 + 公司名 + 近 16 年分红。
+// 注意（CI 实测）：月线+range=max 时 Yahoo 会截断分红事件（KO 只给到 2003 年）；
+// 改用「近 16 年 + 日线」窗口，事件完整——G4 只需判断近 10 年连续性，16 年窗口足够。
+const DIV_WINDOW_YEARS = 16;
 export async function fetchChart(sym: string): Promise<ChartData> {
-  const r = await yfetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=max&interval=1mo&events=div`);
+  const p2 = Math.floor(Date.now() / 1000);
+  const p1 = p2 - 86400 * 365 * DIV_WINDOW_YEARS;
+  const r = await yfetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?period1=${p1}&period2=${p2}&interval=1d&events=div`);
   if (!r.ok) throw new Error(`行情接口 HTTP ${r.status}（代码可能不存在）`);
   const d = await r.json() as any;
   const res = d?.chart?.result?.[0];

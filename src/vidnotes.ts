@@ -17,6 +17,25 @@ export interface VidNote {
 
 export const VID_NOTES: VidNote[] = [
   {
+    id: "2026-06-allin-best-ideas-pitch",
+    title: "All-In「最佳投资点子大赛」：四位基金经理力荐 MGM、Talen 核电、Actis 放射药、GeoNet——AI 电力与物理 AI 成暗线",
+    channel: "All-In Podcast",
+    videoTitle: "All-In's Best Ideas Pitch Competition: 4 Investors Present Their Top Trades",
+    url: "https://www.youtube.com/results?search_query=All-In+Best+Ideas+Pitch+Competition+4+Investors",
+    date: "2026-06-12",
+    takeaways: [
+      "MGM 度假村（Aaron Cowen，最终夺冠）：被低估的两块隐藏资产——2030 年开业的日本大阪赌场牌照、迪拜预留 30 万平尺赌场空间；叠加 Barry Diller 已持股 26% 并出价 48 美元收购，下行有保护，看股价翻倍至三倍。",
+      "Talen Energy（Daniel）：拥有 2GW 核电 + 6GW 燃气基荷电力，企业价值 250 亿 vs 重置成本 450 亿；数据中心被类比为「把电变成 token 的炼油厂」，AI 让本就紧张的电力市场雪上加霜。",
+      "核心判断：「不需要 AI 需求，电力市场未来 20 年也已经够紧——AI 只是火上浇油」；黄仁勋称需要现有 1000 倍的电力，光 PJM 一个区域未来十年就要新增 106GW（约等于整个日本用电量）。",
+      "Actis Oncology（AKTS，Oleg Nelman）：放射性药物像「微型无人机精准爆破癌细胞」，礼来 1 亿美元背书、IPO 超额认购 18 倍；放射性同位素供应链把中国挡在门外，形成罕见护城河，单个项目成功即看 200 美元/股。",
+      "GeoNet（GEODE 代币，Kyle Samani）：全球最大 RTK 高精定位网络（厘米级，比 GPS 精准百倍），用加密激励让个人架基站，成本仅传统方案 1/4；客户含约翰迪尔、DJI、TomTom，吃机器人/无人机/自动驾驶「物理 AI」红利。",
+      "评委共识：MGM 与 Talen 可大额建仓（下行有保护），Actis 与 GeoNet 是高赔率「彩票」；AI 相关标的都要面对日益上升的电价监管政治风险。",
+    ],
+    summary: "这是 All-In 仿照已故投资人 Ira Sohn 慈善峰会形式办的「最佳投资点子大赛」，四位基金经理各用六分钟推一个非共识标的，评委（几位 besties + 嘉宾 Gavin Baker）现场点评打分。\n第一位 Aaron Cowen（Serreta Capital，曾管索罗斯股票业务、当过 Steve Cohen 的 CIO）推美股博彩股 MGM 度假村，并最终夺得评委大奖。他的逻辑不在拉斯维加斯本身，而在两块市场没认真定价的「隐藏资产」：一是 2030 年开业的日本大阪赌场牌照（地理位置对上海/北京赌客比澳门、新加坡都近，日本又是发达国家、低多元市场），二是迪拜豪华综合体里悄悄预留的 30 万平尺空间——一旦迪拜赌博合法化即可启用。再叠加传媒大亨 Barry Diller 已持股 26%、并在他做完这份报告后正式出价 48 美元收购（财务买家、为赚钱而来），下行被收购价托底、上行看翻倍到三倍，他直言「别把股票卖给 Barry」。\n第二位 Daniel 推电力股 Talen Energy，借大宗商品老将 Sam Zell 的「以低于重置成本买入未来稀缺硬资产」框架：Talen 手握 2GW 核电 + 6GW 燃气基荷电力，当前企业价值 250 亿美元、重置成本却高达 450 亿，光回到重置成本股权就能翻倍。他把数据中心类比成「炼油厂」——输入电力、输出 token/智能，每 GW 造价约 500 亿美元，电力就是这座炼油厂的原料。他强调一个关键判断：「不需要 AI 需求，电力市场未来二十年也已经够紧张了，AI 只是把它turbocharge、制造短缺」；黄仁勋称需要现有 1000 倍的电力，光 PJM（宾州-新泽西-马里兰）一个区域未来十年就要新增 106GW、约等于整个日本的用电量，而供应链（关键矿物、镍高温合金、光伏用银）还和火箭发射、轨道数据中心抢产能，注定到处短缺、处处延期。微软说服 Constellation 重启三里岛核电站（保底电价 100 美元/兆瓦时、锁 20 年）就是抢电的著名案例。在「什么都不做也能翻倍、签更多数据中心合同到 70 美元/股、自己建电厂到 100+ 美元/股」三档情景下，他喊话直接买入。\n第三位 Oleg Nelman（Eco R1 Capital，价值导向生物科技基金）推放射性药物公司 Actis Oncology（AKTS）。他用大量军事比喻讲抗癌史：手术放疗像中世纪攻城、化疗像芥子气无差别杀伤、靶向药像 GPS 制导、免疫疗法像招募当地盟军，而放射性药物像「一群微型无人机在血液里靠分子识别找到目标、引爆 100 微米精度的核弹头」——精准爆破单个癌细胞。Actis 平台市值约 10 亿、企业价值 5 亿、现金够烧三年，礼来出资 1 亿背书、IPO 超额认购 18 倍，靶点选成熟的 nectin-4（膀胱癌）和 B7H3（几乎所有实体瘤）；2027 年一季度起出临床数据。最大护城河是放射性同位素（锕，来自美国早年核计划废料）的供应链把中国仿制挡在门外。若单个项目成功，他看 100 亿市值、200 美元/股。\n第四位 Kyle Samani（Multicoin Capital 创始人，早期重仓 Solana）推加密资产 GeoNet（代币 GEODE）：它是全球最大、增长最快的 RTK 高精定位网络（厘米级，比 GPS 精准约百倍），靠加密代币激励让个人/小商户在自家屋顶架基站，2.2 万个节点的规模已是传统三巨头（Trimble、Hexagon、Topcon）总和的两倍，成本却只有自建的 1/4。客户包括约翰迪尔（无人喷洒）、DJI、TomTom（自动驾驶地图）、百万台割草机器人等，吃的是机器人/无人机「物理 AI」的网络效应红利；营收 80% 用于公开市场回购代币（链上可验证），年化营收刚过百万、同比增 3 倍。\n评委点评的共识是：MGM 和 Talen 因为下行有保护可以大额建仓，Actis 和 GeoNet 是高赔率但有归零风险的「彩票」；Gavin Baker 和 David Friedberg 都提醒，所有 AI 相关标的都要面对电价上涨带来的政治与监管风险，而 GeoNet 这类地面定位网未来也可能被 SpaceX 式的低轨卫星星座替代。最终评委大奖 MGM、观众票冠军 Talen。\n（对 AI 投资者的看点：Talen 代表「AI 电力」主线的纯粹标的，GeoNet 代表机器人/自动驾驶的定位基础设施，都是产业链里容易被忽视的卖铲环节。）",
+    tickers: ["MGM", "TLN", "AKTS", "LLY"],
+    segs: ["power_energy", "robotics", "autonomous_driving"],
+  },
+  {
     id: "2026-06-allin-fetterman-mccormick-ai-energy",
     title: "All-In 对话宾州两党参议员：AI 数据中心是「蓝领大繁荣」，反对数据中心的暂停令「是中国优先政策」",
     channel: "All-In Podcast",

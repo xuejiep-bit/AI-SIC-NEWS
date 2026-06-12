@@ -22,4 +22,4 @@ jobs:
             | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['subdomain'])")
           URL="https://aisicnews.$SUB.workers.dev/api/translate"
           echo "Triggering: $URL"
-          curl -s --max-time 280 "$URL" | python3 -m json.tool
+          curl -s --max-time 280 "$URL" | python3 -m json.tool   # run 2

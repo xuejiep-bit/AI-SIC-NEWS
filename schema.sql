@@ -32,3 +32,10 @@ CREATE INDEX IF NOT EXISTS idx_articles_tstatus   ON articles(translate_status);
 -- 跨源去重：归一化标题唯一。配合入库时的 INSERT OR IGNORE，
 -- 不同来源转载的同一篇资讯只会保留一条。
 CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_title_key ON articles(title_key);
+
+-- ── 模块5：邮件订阅（第一版仅收集邮箱，不自动发信）──
+CREATE TABLE IF NOT EXISTS subscribers (
+  email         TEXT PRIMARY KEY,  -- 邮箱（小写归一化；主键天然去重）
+  subscribed_at INTEGER,           -- 订阅时间 unix ms
+  source        TEXT               -- 来源页面：home(首页主推区) | notes(笔记页底部)
+);

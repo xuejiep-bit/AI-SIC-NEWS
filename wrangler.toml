@@ -34,3 +34,7 @@ RETENTION_DAYS = "30"
 
 # ANTHROPIC_API_KEY 不要写在这里——用机密方式设置：
 #   npx wrangler secret put ANTHROPIC_API_KEY
+
+# 订阅邮箱导出接口（/api/subscribers.csv?token=…）的密钥。请用机密方式设置：
+#   npx wrangler secret put EXPORT_TOKEN
+# 未设置时导出接口整体关闭（订阅收集不受影响）。

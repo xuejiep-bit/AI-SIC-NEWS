@@ -83,6 +83,13 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   /* ── 地区筛选 ── */
   .seg { display:flex; gap:6px; }
   .seg .btn { padding:6px 12px; }
+  /* ── 邮件订阅表单 ── */
+  .subbox { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px;
+    background:var(--panel); border:1px dashed var(--line); border-radius:12px; padding:12px 16px; }
+  .subbox .st { font-size:12.5px; color:var(--dim); }
+  .subbox input { background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+    border-radius:8px; padding:8px 12px; width:220px; font-size:13px; }
+  .subbox .sub-msg { font-size:12px; color:var(--acc2); }
   .cards.notes { grid-template-columns:1fr; max-width:820px; }
   .card.note .pts { margin:4px 0 0; padding-left:20px; color:var(--txt); font-size:13px; line-height:1.7; }
   .card.note .pts li::marker { color:var(--invest); }
@@ -255,6 +262,7 @@ const lang = "zh";  // 全站统一中文（语言切换已移除）
 // sel.video：false 或具体视频 layer（"video" = AI 视频，"video_invest" = 投资视频）
 let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false };
 let regionFilter = "all"; // 资讯流地区筛选：all | cn(国内) | global(国际)，与产业链分类叠加
+let noteAnchor = "";      // ?note=<id> 直达某篇笔记（地图页「我的笔记」链接用），定位后清空
 let counts = {};
 let investCount = 0;
 let videoCount = 0;
@@ -269,7 +277,7 @@ let earnMkt = "all";     // 财报视图的市场筛选
   const sp = new URLSearchParams(location.search);
   const rg = sp.get("region"); if(rg==="cn"||rg==="global") regionFilter = rg;
   if(sp.get("invest")==="1"){ sel.invest = true; }
-  else if(sp.get("notes")==="1"){ sel.notes = true; }
+  else if(sp.get("notes")==="1"){ sel.notes = true; noteAnchor = sp.get("note")||""; }
   else if(sp.get("layer")==="video"||sp.get("layer")==="video_invest"){ sel.video = sp.get("layer"); }
   else {
     if(sp.get("layer")) sel.layer = sp.get("layer");
@@ -359,11 +367,46 @@ function renderHero(){
       '<div class="hs">'+esc(ex)+'</div>'+
       '<div class="hd"><span>'+esc(n.date)+'</span><span>·</span><span>'+esc(n.channel)+'</span></div></div>';
   }).join("")+'</div>';
+  html += subFormHtml("home"); // 主推区底部：邮件订阅入口
   $("#hero").innerHTML = html;
   const openNotes = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true}; renderNav(); load(); };
   $("#allNotes").onclick = openNotes;
   $("#hero").querySelectorAll(".hcard").forEach(el=>{ el.onclick = openNotes; });
+  wireSubForms();
 }
+// ── 邮件订阅（模块5：第一版仅收集邮箱入库，不自动发信）──
+function subFormHtml(source){
+  return '<div class="subbox" data-src="'+source+'">'+
+    '<span class="st">📮 每周一封，精选本周全球 AI 产业链最值得看的信号</span>'+
+    '<input type="email" class="sub-email" placeholder="输入邮箱…" />'+
+    '<button class="btn sub-btn">订阅</button>'+
+    '<span class="sub-msg"></span></div>';
+}
+function wireSubForms(){
+  document.querySelectorAll(".subbox").forEach(box=>{
+    if(box.dataset.wired) return; box.dataset.wired = "1";
+    const input = box.querySelector(".sub-email");
+    const msg = box.querySelector(".sub-msg");
+    const btn = box.querySelector(".sub-btn");
+    const submit = async ()=>{
+      const email = input.value.trim();
+      if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(email)){ msg.textContent = "邮箱格式不正确"; return; }
+      btn.disabled = true; msg.textContent = "提交中…";
+      try{
+        const r = await fetch("/api/subscribe", { method:"POST",
+          headers:{ "content-type":"application/json" },
+          body: JSON.stringify({ email, source: box.dataset.src }) });
+        const d = await r.json();
+        if(d.ok){ msg.textContent = d.existed ? "你已订阅过啦" : "订阅成功 ✓"; input.value=""; }
+        else { msg.textContent = d.error || "提交失败，请重试"; }
+      }catch(e){ msg.textContent = "网络错误，请重试"; }
+      btn.disabled = false;
+    };
+    btn.onclick = submit;
+    input.onkeydown = e=>{ if(e.key==="Enter") submit(); };
+  });
+}
+
 // 地区筛选按钮（全部 / 国内 / 国际）
 function renderRegionSeg(){
   const opts = [["all","全部"],["cn","国内"],["global","国际"]];
@@ -476,14 +519,21 @@ function renderNotes(){
     const tks = (n.tickers||[]).map(tk=>'<span class="chip" style="background:var(--invest)">'+esc(tk)+'</span>').join("");
     const pts = (n.takeaways||[]).map(p=>'<li>'+esc(p)+'</li>').join("");
     const paras = (n.summary||"").split("\\n").filter(s=>s.trim()).map(s=>'<p>'+esc(s)+'</p>').join("");
-    return '<div class="card note">'+
+    return '<div class="card note" id="note-'+esc(n.id)+'">'+
       '<a class="t" href="'+n.url+'" target="_blank" rel="noopener">🎬 '+esc(n.title)+'</a>'+
       '<div class="tags">'+tks+'<span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
       '<span>·</span><span>'+esc(n.videoTitle)+'</span></div>'+
       (pts?'<ul class="pts">'+pts+'</ul>':'')+
       '<div class="full">'+paras+'</div>'+
       '</div>';
-  }).join("");
+  }).join("") + subFormHtml("notes"); // 笔记列表底部：邮件订阅入口
+  wireSubForms();
+  // 来自地图页的 ?note=<id> 直达：滚动到对应笔记并高亮
+  if(noteAnchor){
+    const el = document.getElementById("note-"+noteAnchor);
+    if(el){ el.style.borderColor = "var(--invest)"; el.scrollIntoView({behavior:"smooth", block:"start"}); }
+    noteAnchor = "";
+  }
 }
 
 // ── 公司财报视图 ─────────────────────────────────────

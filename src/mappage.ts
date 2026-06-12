@@ -74,6 +74,7 @@ const LAYERS = [
 ];
 let NODES = [];   // 节点配置（/api/mapdata，编辑 src/mapconfig.json 即可更新）
 let COUNTS = {};  // 各分类的资讯条数（/api/stats）
+let NOTES = [];   // 深度笔记（/api/vidnotes）：带 segs 标签的笔记自动挂到对应环节下
 let current = null;
 
 const $ = s => document.querySelector(s);
@@ -105,8 +106,12 @@ function renderDetail(){
   const cos = (n.companies&&n.companies.length)
     ? '<div class="chips">'+n.companies.map(c=>'<span class="co">'+esc(c)+'</span>').join("")+'</div>'
     : '<span class="todo" style="color:var(--dim);font-size:13px">待补充</span>';
-  const notes = (n.note_links&&n.note_links.length)
-    ? n.note_links.map(x=>'<a href="'+x.url+'">📝 '+esc(x.title)+'</a>').join("")
+  // 笔记 = 自动关联（笔记的 segs 含本环节）+ mapconfig.json 里手动配置的链接
+  const auto = NOTES.filter(v=>(v.segs||[]).includes(n.category_key))
+    .map(v=>({ title:v.title, url:"/?notes=1&note="+encodeURIComponent(v.id) }));
+  const links = auto.concat(n.note_links||[]);
+  const notes = links.length
+    ? links.map(x=>'<a href="'+x.url+'">📝 '+esc(x.title)+'</a>').join("")
     : '<span class="todo">待写</span>';
   box.innerHTML =
     '<h3>'+esc(n.name)+'<span class="lay" style="background:'+L.color+'">'+esc(L.name)+'</span></h3>'+
@@ -122,11 +127,13 @@ function renderDetail(){
 
 async function init(){
   try{
-    const [md, st] = await Promise.all([
+    const [md, st, vn] = await Promise.all([
       fetch("/api/mapdata").then(r=>r.json()),
       fetch("/api/stats").then(r=>r.json()),
+      fetch("/api/vidnotes").then(r=>r.json()).catch(()=>[]),
     ]);
     NODES = md.nodes||[];
+    NOTES = Array.isArray(vn) ? vn : [];
     (st.breakdown||[]).forEach(row=>{ if(row.segment) COUNTS[row.segment]=(COUNTS[row.segment]||0)+row.n; });
     render();
   }catch(e){

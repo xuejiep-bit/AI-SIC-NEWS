@@ -16,6 +16,7 @@ export interface Env {
   USE_AI?: string;          // "1" / "true" 开启 Claude 语义分类+翻译
   AI_MODEL?: string;        // 默认 claude-opus-4-8
   RETENTION_DAYS?: string;  // 保留天数，默认 30；<=0 表示不清理
+  EXPORT_TOKEN?: string;    // 订阅邮箱 CSV 导出接口的访问密钥；未设置时导出功能关闭
 }
 
 // 基于链接的稳定 id（FNV-1a 32bit），用于去重
@@ -325,6 +326,39 @@ export default {
         return new Response(robotsTxt(url.origin), { headers: { "content-type": "text/plain; charset=utf-8" } });
       }
       if (path === "/api/vidnotes") return json(VID_NOTES);
+      // ── 模块5：邮件订阅（仅收集入库，不自动发信）──
+      if (path === "/api/subscribe" && request.method === "POST") {
+        let body: { email?: string; source?: string };
+        try { body = await request.json(); } catch { return json({ error: "请求格式错误" }, 400); }
+        const email = String(body.email || "").trim().toLowerCase();
+        // 基础格式校验 + 长度上限；重复提交由主键 INSERT OR IGNORE 去重
+        if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+          return json({ error: "邮箱格式不正确" }, 400);
+        }
+        const source = String(body.source || "").slice(0, 50);
+        const res = await env.DB.prepare(
+          `INSERT OR IGNORE INTO subscribers (email, subscribed_at, source) VALUES (?, ?, ?)`,
+        ).bind(email, Date.now(), source).run();
+        return json({ ok: true, existed: (res.meta?.changes ?? 0) === 0 });
+      }
+      if (path === "/api/subscribers.csv") {
+        // 订阅邮箱导出（CSV），需 EXPORT_TOKEN 密钥；未配置密钥时整体关闭，避免邮箱泄露。
+        const token = env.EXPORT_TOKEN || "";
+        if (!token) return json({ error: "导出未启用：请先用 wrangler secret put EXPORT_TOKEN 设置密钥" }, 403);
+        const provided = url.searchParams.get("token") || "";
+        if (provided !== token) return json({ error: "unauthorized" }, 401);
+        const { results } = await env.DB.prepare(
+          `SELECT email, subscribed_at, source FROM subscribers ORDER BY subscribed_at DESC`,
+        ).all<{ email: string; subscribed_at: number; source: string }>();
+        const csv = "email,subscribed_at,source\n" +
+          results.map((r) => `${r.email},${new Date(r.subscribed_at).toISOString()},${r.source || ""}`).join("\n");
+        return new Response(csv, {
+          headers: {
+            "content-type": "text/csv; charset=utf-8",
+            "content-disposition": "attachment; filename=subscribers.csv",
+          },
+        });
+      }
       if (path === "/api/news") return json(await queryNews(env, url));
       if (path === "/api/stats") return json(await queryStats(env, url));
       if (path === "/api/refresh") {

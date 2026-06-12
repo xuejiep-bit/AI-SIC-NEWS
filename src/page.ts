@@ -90,6 +90,11 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .subbox input { background:var(--panel2); border:1px solid var(--line); color:var(--txt);
     border-radius:8px; padding:8px 12px; width:220px; font-size:13px; }
   .subbox .sub-msg { font-size:12px; color:var(--acc2); }
+  /* 顶部导航里的紧凑订阅条 */
+  .subbox.hdr { margin-top:0; padding:0; border:none; background:transparent; gap:8px; }
+  .subbox.hdr .st { color:var(--txt); font-size:13px; }
+  .subbox.hdr input { width:170px; padding:7px 10px; }
+  @media (max-width:900px){ .subbox.hdr .st{display:none;} .subbox.hdr input{width:130px;} }
   .cards.notes { grid-template-columns:1fr; max-width:820px; }
   .card.note .pts { margin:4px 0 0; padding-left:20px; color:var(--txt); font-size:13px; line-height:1.7; }
   .card.note .pts li::marker { color:var(--invest); }
@@ -115,6 +120,13 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
     <h1 data-i18n="title">AI 链</h1>
   </div>
   <div class="spacer"></div>
+  <!-- 顶部订阅入口：全站常驻可见 -->
+  <div class="subbox hdr" data-src="header" title="每周一封，精选本周全球 AI 产业链最值得看的信号">
+    <span class="st">📮 订阅周报</span>
+    <input type="email" class="sub-email" placeholder="输入邮箱…" />
+    <button class="btn sub-btn">订阅</button>
+    <span class="sub-msg"></span>
+  </div>
   <button class="btn" id="earnBtn">📊 公司财报</button>
   <button class="btn" id="refreshBtn" data-i18n="refresh">刷新数据</button>
 </header>
@@ -366,13 +378,11 @@ function renderHero(){
       '<div class="ht">'+esc(n.title)+'</div>'+
       '<div class="hs">'+esc(ex)+'</div>'+
       '<div class="hd"><span>'+esc(n.date)+'</span><span>·</span><span>'+esc(n.channel)+'</span></div></div>';
-  }).join("")+'</div>';
-  html += subFormHtml("home"); // 主推区底部：邮件订阅入口
+  }).join("")+'</div>'; // 订阅入口已移至顶部导航常驻，主推区不再重复放置
   $("#hero").innerHTML = html;
   const openNotes = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true}; renderNav(); load(); };
   $("#allNotes").onclick = openNotes;
   $("#hero").querySelectorAll(".hcard").forEach(el=>{ el.onclick = openNotes; });
-  wireSubForms();
 }
 // ── 邮件订阅（模块5：第一版仅收集邮箱入库，不自动发信）──
 function subFormHtml(source){
@@ -622,7 +632,7 @@ $("#refreshBtn").onclick = async ()=>{
 };
 
 const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
-applyI18n(); renderRegionSeg(); loadStats(); loadNotes(); load();
+applyI18n(); wireSubForms(); renderRegionSeg(); loadStats(); loadNotes(); load();
 </script>
 </body>
 </html>`;

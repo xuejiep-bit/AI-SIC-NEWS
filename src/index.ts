@@ -8,6 +8,9 @@ import { PAGE_HTML } from "./page";
 import { MAP_HTML } from "./mappage";
 import MAP_CONFIG from "./mapconfig.json";
 import { VID_NOTES } from "./vidnotes";
+import { TOOLS_HTML } from "./toolspage";
+import { generateGrahamReport } from "./graham";
+import { normalizeSymbol } from "./finance";
 
 export interface Env {
   DB: D1Database;
@@ -313,6 +316,33 @@ export default {
       if (path === "/api/mapdata") {
         // 地图节点配置（含说明、公司、笔记链接），供 /map 前端渲染
         return json(MAP_CONFIG);
+      }
+      if (path === "/tools") {
+        // 投资分析工具页（阶段1: Graham；CAN SLIM / 海龟 后续接入）
+        return new Response(TOOLS_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+      if (path === "/api/report") {
+        // 生成单股分析报告。当天缓存：同一 策略+代码 一天只真正生成一次。
+        const rawSym = (url.searchParams.get("symbol") || "").trim();
+        const strategy = url.searchParams.get("strategy") || "graham";
+        if (!rawSym) return json({ error: "缺少股票代码" }, 400);
+        if (!/^[A-Za-z0-9.\-]{1,12}$/.test(rawSym)) return json({ error: "代码格式不正确" }, 400);
+        if (strategy !== "graham") return json({ error: "该策略即将上线，当前仅支持 Graham" }, 400);
+        const mParam = url.searchParams.get("market");
+        const market: "us" | "hk" = mParam === "hk" || (mParam !== "us" && /^\d+$/.test(rawSym.replace(/\.HK$/i, ""))) ? "hk" : "us";
+        const sym = normalizeSymbol(rawSym, market);
+        const day = new Date().toISOString().slice(0, 10);
+        const key = `${strategy}:${sym}:${day}`;
+        const hit = await env.DB.prepare(`SELECT md FROM reports WHERE k = ?`).bind(key).first<{ md: string }>();
+        if (hit?.md) return json({ ok: true, cached: true, symbol: sym, md: hit.md });
+        try {
+          const md = await generateGrahamReport(rawSym, market);
+          await env.DB.prepare(`INSERT OR REPLACE INTO reports (k, md, created_at) VALUES (?, ?, ?)`)
+            .bind(key, md, Date.now()).run();
+          return json({ ok: true, cached: false, symbol: sym, md });
+        } catch (err) {
+          return json({ error: `报告生成失败: ${String(err instanceof Error ? err.message : err).slice(0, 200)}` }, 502);
+        }
       }
       if (path === "/favicon.svg" || path === "/favicon.ico") {
         return new Response(FAVICON_SVG, {

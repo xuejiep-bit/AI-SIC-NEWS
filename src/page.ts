@@ -125,6 +125,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
     <h1 data-i18n="title">AI 链</h1>
   </div>
   <div class="spacer"></div>
+  <a class="btn" href="/tools" style="text-decoration:none">🧰 分析工具</a>
   <button class="btn" id="earnBtn">📊 公司财报</button>
   <button class="btn" id="refreshBtn" data-i18n="refresh">刷新数据</button>
 </header>

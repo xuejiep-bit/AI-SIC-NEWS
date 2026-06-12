@@ -39,3 +39,10 @@ CREATE TABLE IF NOT EXISTS subscribers (
   subscribed_at INTEGER,           -- 订阅时间 unix ms
   source        TEXT               -- 来源页面：home(首页主推区) | notes(笔记页底部)
 );
+
+-- ── 分析工具：单股报告当天缓存 ──
+CREATE TABLE IF NOT EXISTS reports (
+  k          TEXT PRIMARY KEY,  -- 策略:代码:日期
+  md         TEXT,
+  created_at INTEGER
+);

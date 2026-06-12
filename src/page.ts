@@ -365,17 +365,14 @@ function renderCards(items){
       segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : (lang==="zh"?"行业动态":"Industry");
       color = COLOR[a.layer]||"var(--other)";
     }
-    // 英文资讯优先展示翻译后的中文标题/摘要；尚未翻译的先显示英文原文并加「原文」小标。
-    const isVideo = a.layer==="video"||a.layer==="video_invest";
+    // 中英资讯合并展示：中文源显示中文，英文源直接显示英文原文（不做翻译）。
     const title = a.title_zh || a.title;
     const summ = a.summary_zh || a.summary;
-    const rawTag = (!isVideo && a.lang!=="zh" && !a.title_zh)
-      ? '<span class="chip" style="background:var(--other)">原文</span>' : '';
     const regionTag = a.region==="cn" ? "国内" : (a.region==="global" ? "国际" : "");
     return '<div class="card">'+
       '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a>'+
       (summ?'<div class="s">'+esc(summ)+'</div>':'')+
-      '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+rawTag+
+      '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+
       '<span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span>'+
       (regionTag?'<span>·</span><span>'+regionTag+'</span>':'')+'</div>'+
       '</div>';

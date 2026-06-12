@@ -4,9 +4,9 @@ compatibility_date = "2024-11-01"
 
 # 静态前端资源（public 目录）由 Worker 直接 inline 提供，这里不单独配置 assets。
 
-# 定时触发：整点抓取入库，半点翻译英文资讯（分开避免单次请求子请求超限）。
+# 定时抓取：每小时触发一次 scheduled() 拉取并分类入库。
 [triggers]
-crons = ["0 * * * *", "30 * * * *"]
+crons = ["0 * * * *"]
 
 # D1 数据库绑定。首次使用前需要创建：
 #   npx wrangler d1 create ai-sic-news
@@ -15,10 +15,6 @@ crons = ["0 * * * *", "30 * * * *"]
 binding = "DB"
 database_name = "ai-sic-news"
 database_id = "b18f2d72-b0be-4bcd-b954-26fe8bd38226"
-
-# Cloudflare Workers AI 绑定（模块2 英文资讯翻译）。无需密钥，账号自带免费额度。
-[ai]
-binding = "AI"
 
 [vars]
 # 手动触发抓取接口 /api/refresh 的保护令牌。部署后请改成你自己的随机值，
@@ -35,13 +31,6 @@ AI_MODEL = "claude-opus-4-8"
 
 # 数据保留天数；超过则在每次抓取后清理。设为 "0" 表示永不清理。
 RETENTION_DAYS = "30"
-
-# 模块2：英文资讯翻译用的 Workers AI 模型。默认 Llama 3.1 8B（省额度、输出稳定）。
-# 想要更地道的中文可改为 "@cf/zai-org/glm-4.7-flash" 或 "@cf/qwen/qwen3-30b-a3b-fp8"。
-AI_TRANSLATE_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
-
-# 每轮（每小时）翻译条数上限，控制 Workers AI 免费额度消耗（约每天 1 万 neurons）。
-TRANSLATE_PER_RUN = "20"
 
 # ANTHROPIC_API_KEY 不要写在这里——用机密方式设置：
 #   npx wrangler secret put ANTHROPIC_API_KEY

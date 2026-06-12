@@ -5,6 +5,8 @@ import { aiClassify, type AiInput } from "./ai";
 import { investClause } from "./invest";
 import { LAYERS, SEGMENTS } from "./taxonomy";
 import { PAGE_HTML } from "./page";
+import { MAP_HTML } from "./mappage";
+import MAP_CONFIG from "./mapconfig.json";
 import { VID_NOTES } from "./vidnotes";
 
 export interface Env {
@@ -268,7 +270,7 @@ async function reclassifyAll(env: Env): Promise<{ scanned: number; updated: numb
 // ── SEO: sitemap & robots ─────────────────────────────
 function sitemapXml(origin: string): string {
   const today = new Date().toISOString().slice(0, 10);
-  const urls: string[] = [origin + "/"];
+  const urls: string[] = [origin + "/", origin + "/map"];
   for (const L of LAYERS) if (L.key !== "other") urls.push(`${origin}/?layer=${L.key}`);
   urls.push(`${origin}/?invest=1`);
   urls.push(`${origin}/?layer=video`);
@@ -304,12 +306,12 @@ export default {
         return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
       if (path === "/map") {
-        // 产业链地图（模块4 实现），先放占位页避免首页入口 404。
-        const ph = `<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>AI 产业链地图 · 建设中</title><style>body{margin:0;background:#0b0e14;color:#e6e9f0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
-.box{text-align:center}.box h1{font-size:22px}.box p{color:#8a93a8}a{color:#4f8cff;text-decoration:none}</style></head>
-<body><div class="box"><h1>🗺️ AI 产业链地图</h1><p>页面建设中，敬请期待。</p><p><a href="/">← 返回首页</a></p></div></body></html>`;
-        return new Response(ph, { headers: { "content-type": "text/html; charset=utf-8" } });
+        // AI 产业链地图页。节点文案/公司列表在 src/mapconfig.json 维护。
+        return new Response(MAP_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+      if (path === "/api/mapdata") {
+        // 地图节点配置（含说明、公司、笔记链接），供 /map 前端渲染
+        return json(MAP_CONFIG);
       }
       if (path === "/favicon.svg" || path === "/favicon.ico") {
         return new Response(FAVICON_SVG, {

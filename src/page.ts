@@ -304,7 +304,7 @@ function layerCount(layer){ return Object.entries(counts).filter(([k])=>k.starts
 
 async function loadStats(){
   try{
-    const r = await fetch("/api/stats?lang="+lang); const d = await r.json();
+    const r = await fetch("/api/stats"); const d = await r.json(); // 不再按语言过滤，中英资讯一起统计
     counts = {};
     (d.breakdown||[]).forEach(row=>{ counts[(row.layer||"other")+"/"+(row.segment||"_")]=row.n; });
     investCount = d.invest||0;
@@ -325,8 +325,8 @@ async function load(){
     if(sel.segment!=="all") p.set("segment", sel.segment);
   }
   const q = $("#q").value.trim(); if(q) p.set("q", q);
-  p.set("lang", lang);
-  p.set("limit","100");
+  p.set("limit","100"); // 不再按语言过滤：英文资讯用翻译后的中文展示，未翻译的先显示原文
+
   try{
     const r = await fetch("/api/news?"+p.toString());
     const data = await r.json();
@@ -365,13 +365,19 @@ function renderCards(items){
       segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : (lang==="zh"?"行业动态":"Industry");
       color = COLOR[a.layer]||"var(--other)";
     }
-    const title = (lang==="zh" && a.title_zh) ? a.title_zh : a.title;
+    // 英文资讯优先展示翻译后的中文标题/摘要；尚未翻译的先显示英文原文并加「原文」小标。
+    const isVideo = a.layer==="video"||a.layer==="video_invest";
+    const title = a.title_zh || a.title;
+    const summ = a.summary_zh || a.summary;
+    const rawTag = (!isVideo && a.lang!=="zh" && !a.title_zh)
+      ? '<span class="chip" style="background:var(--other)">原文</span>' : '';
+    const regionTag = a.region==="cn" ? "国内" : (a.region==="global" ? "国际" : "");
     return '<div class="card">'+
       '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a>'+
-      (a.summary?'<div class="s">'+esc(a.summary)+'</div>':'')+
-      '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+
+      (summ?'<div class="s">'+esc(summ)+'</div>':'')+
+      '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+rawTag+
       '<span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span>'+
-      '<span>·</span><span>'+(a.lang==="zh"?"中文":"EN")+'</span></div>'+
+      (regionTag?'<span>·</span><span>'+regionTag+'</span>':'')+'</div>'+
       '</div>';
   }).join("");
 }

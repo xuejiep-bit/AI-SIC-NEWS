@@ -1,56 +1,14 @@
-# 临时探针：从云端实测 Yahoo Finance 接口对美股(KO)和港股(0700.HK)的可用性与字段。用完即删。
+# 临时探针：从云端实测 Yahoo Finance 接口。用完即删。
 name: Probe Yahoo
 
 on:
   push:
     branches: [claude/dreamy-cray-GFpRu]
-    paths: [.github/workflows/probe-yahoo.yml]
+    paths: [.github/workflows/probe-yahoo.yml, scripts/probe_yahoo.py]
 
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe chart + quoteSummary
-        run: |
-          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-          for SYM in KO 0700.HK; do
-            echo "==================== $SYM : chart (price+div) ===================="
-            curl -s -A "$UA" "https://query1.finance.yahoo.com/v8/finance/chart/$SYM?range=2y&interval=1d&events=div" -o /tmp/c.json -w "HTTP %{http_code} size %{size_download}\n"
-            python3 - <<'PY'
-import json
-try:
-  d=json.load(open('/tmp/c.json'))
-  r=d['chart']['result'][0]
-  m=r['meta']
-  print('  currency',m.get('currency'),'price',m.get('regularMarketPrice'))
-  cl=[x for x in r['indicators']['quote'][0]['close'] if x][-3:]
-  print('  last closes',cl)
-  print('  has dividends:', 'dividends' in r.get('events',{}))
-except Exception as e:
-  print('  parse error:',e); print(open('/tmp/c.json').read()[:200])
-PY
-            echo "==================== $SYM : quoteSummary (fundamentals) ===================="
-            curl -s -A "$UA" "https://query1.finance.yahoo.com/v10/finance/quoteSummary/$SYM?modules=incomeStatementHistory,balanceSheetHistory,defaultKeyStatistics,summaryDetail,financialData" -o /tmp/q.json -w "HTTP %{http_code} size %{size_download}\n"
-            head -c 160 /tmp/q.json; echo
-            python3 - <<'PY'
-import json
-try:
-  d=json.load(open('/tmp/q.json'))
-  err=d.get('quoteSummary',{}).get('error')
-  if err: print('  ERROR:',err); raise SystemExit
-  res=d['quoteSummary']['result'][0]
-  ish=res.get('incomeStatementHistory',{}).get('incomeStatementHistory',[])
-  print('  income annual periods:',len(ish))
-  if ish:
-    a=ish[0]
-    print('  totalRevenue',a.get('totalRevenue',{}).get('raw'),'netIncome',a.get('netIncome',{}).get('raw'))
-  bs=res.get('balanceSheetHistory',{}).get('balanceSheetStatements',[])
-  print('  balance periods:',len(bs))
-  ks=res.get('defaultKeyStatistics',{})
-  print('  bookValue',ks.get('bookValue',{}).get('raw'),'trailingEps',ks.get('trailingEps',{}).get('raw'))
-  sd=res.get('summaryDetail',{})
-  print('  trailingPE',sd.get('trailingPE',{}).get('raw'),'priceToBook',ks.get('priceToBook',{}).get('raw'),'divRate',sd.get('dividendRate',{}).get('raw'))
-except Exception as e:
-  print('  parse error:',e)
-PY
-          done
+      - uses: actions/checkout@v4
+      - run: python3 scripts/probe_yahoo.py

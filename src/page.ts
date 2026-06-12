@@ -90,11 +90,16 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .subbox input { background:var(--panel2); border:1px solid var(--line); color:var(--txt);
     border-radius:8px; padding:8px 12px; width:220px; font-size:13px; }
   .subbox .sub-msg { font-size:12px; color:var(--acc2); }
-  /* 顶部导航里的紧凑订阅条 */
-  .subbox.hdr { margin-top:0; padding:0; border:none; background:transparent; gap:8px; }
-  .subbox.hdr .st { color:var(--txt); font-size:13px; }
-  .subbox.hdr input { width:170px; padding:7px 10px; }
-  @media (max-width:900px){ .subbox.hdr .st{display:none;} .subbox.hdr input{width:130px;} }
+  /* 进站第一眼的订阅大横幅（金色调，与蓝绿色地图横幅区分） */
+  .subhero { margin:0 0 16px; padding:16px 20px;
+    background:linear-gradient(90deg,rgba(245,179,1,.14),rgba(79,140,255,.08));
+    border:1px solid rgba(245,179,1,.45); border-radius:14px; }
+  .subhero .sl { margin-right:auto; }
+  .subhero .big { font-size:16px; font-weight:800; }
+  .subhero .st { margin-top:3px; }
+  .subhero input { width:240px; }
+  .subhero .sub-btn { background:var(--invest); border-color:var(--invest); color:#1a1a1a; font-weight:700; }
+  @media (max-width:700px){ .subhero input{width:100%;} .subhero .sub-btn{width:100%;} }
   .cards.notes { grid-template-columns:1fr; max-width:820px; }
   .card.note .pts { margin:4px 0 0; padding-left:20px; color:var(--txt); font-size:13px; line-height:1.7; }
   .card.note .pts li::marker { color:var(--invest); }
@@ -120,19 +125,20 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
     <h1 data-i18n="title">AI 链</h1>
   </div>
   <div class="spacer"></div>
-  <!-- 顶部订阅入口：全站常驻可见 -->
-  <div class="subbox hdr" data-src="header" title="每周一封，精选本周全球 AI 产业链最值得看的信号">
-    <span class="st">📮 订阅周报</span>
-    <input type="email" class="sub-email" placeholder="输入邮箱…" />
-    <button class="btn sub-btn">订阅</button>
-    <span class="sub-msg"></span>
-  </div>
   <button class="btn" id="earnBtn">📊 公司财报</button>
   <button class="btn" id="refreshBtn" data-i18n="refresh">刷新数据</button>
 </header>
 <div class="wrap">
   <aside id="nav"></aside>
   <main>
+    <!-- 订阅横幅：主内容区第一屏最顶部，进站即见（财报视图下隐藏） -->
+    <div id="subhero" class="subbox subhero" data-src="top">
+      <div class="sl"><div class="big">📮 AI 链 · 周报</div>
+      <div class="st">每周一封，精选本周全球 AI 产业链最值得看的信号</div></div>
+      <input type="email" class="sub-email" placeholder="输入邮箱…" />
+      <button class="btn sub-btn">免费订阅</button>
+      <span class="sub-msg"></span>
+    </div>
     <!-- 顶部主推区：深度笔记（默认首页视图才显示） -->
     <div id="hero" style="display:none"></div>
     <!-- 产业链地图入口横幅 -->
@@ -551,6 +557,7 @@ function setView(v){
   view = v;
   const earn = v==="earnings";
   if(earn){ $("#hero").style.display="none"; $("#mapban").style.display="none"; }
+  $("#subhero").style.display = earn ? "none" : "flex"; // 订阅横幅：除财报视图外常驻
   $("#regionSeg").style.display = earn ? "none" : "flex";
   $("#earnings").style.display = earn ? "block" : "none";
   $("#cards").style.display = earn ? "none" : "";

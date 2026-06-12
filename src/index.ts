@@ -296,13 +296,8 @@ export default {
 
     try {
       if (path === "/" || path === "/index.html") {
-        // 按访问者所在国家选默认版本：中国大陆 IP 默认「国内版」，其余默认「国际版」。
-        // 前端仍可手动切换并记忆（localStorage），也可用 ?region=cn / ?region=global 直达。
-        const country = (request.cf as { country?: string } | undefined)?.country;
-        const region = country === "CN" ? "cn" : "global";
-        return new Response(PAGE_HTML.replaceAll("__REGION_DEFAULT__", region), {
-          headers: { "content-type": "text/html; charset=utf-8" },
-        });
+        // 全站统一中文，不再有语言/版本切换。
+        return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
       if (path === "/favicon.svg" || path === "/favicon.ico") {
         return new Response(FAVICON_SVG, {

@@ -1,4 +1,4 @@
-// 前端单页（内嵌于 Worker 返回）。原生 JS，无需构建。中英文双语界面。
+// 前端单页（内嵌于 Worker 返回）。原生 JS，无需构建。全站统一中文界面。
 
 export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <html lang="zh">
@@ -84,8 +84,6 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   </div>
   <div class="spacer"></div>
   <button class="btn" id="earnBtn">📊 公司财报</button>
-  <button class="btn" id="regionBtn"></button>
-  <button class="btn" id="langBtn">EN</button>
   <button class="btn" id="refreshBtn" data-i18n="refresh">刷新数据</button>
 </header>
 <div class="wrap">
@@ -105,17 +103,12 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   </main>
 </div>
 <script>
+// 全站统一中文文案（语言/版本切换已移除）。
 const I18N = {
   zh: { title:"AI 链",
     refresh:"刷新数据", search:"搜索关键词…", empty:"暂无数据。点击右上角「刷新数据」拉取最新资讯。",
     all:"全部", loading:"加载中…", refreshing:"正在抓取…", count:n=>n+" 条资讯",
-    earnings:"📊 公司财报", news:"📰 资讯", searchCo:"搜索公司 / 代码…", viewFin:"查看财报 →", market:"市场", noCo:"无匹配公司",
-    toGlobal:"🌍 切国际版", toCN:"🇨🇳 切国内版" },
-  en: { title:"AIChain",
-    refresh:"Refresh", search:"Search…", empty:"No data yet. Click \\"Refresh\\" to fetch the latest news.",
-    all:"All", loading:"Loading…", refreshing:"Fetching…", count:n=>n+" articles",
-    earnings:"📊 Earnings", news:"📰 News", searchCo:"Search company / ticker…", viewFin:"Financials →", market:"Market", noCo:"No companies",
-    toGlobal:"🌍 Global", toCN:"🇨🇳 China" },
+    earnings:"📊 公司财报", news:"📰 资讯", searchCo:"搜索公司 / 代码…", viewFin:"查看财报 →", market:"市场", noCo:"无匹配公司" },
 };
 const TAX = [
   { key:"upstream", color:"var(--up)", zh:"上游 · 基础设施层", en:"Upstream · Infrastructure", segs:[
@@ -224,12 +217,7 @@ const MKT = [
   {k:"a",  zh:"🇨🇳 A股", en:"🇨🇳 A-Share"},
 ];
 
-let lang = localStorage.getItem("lang") || "zh";
-// 站点分「国内版 / 国际版」两支：国内版剔除大陆打不开的内容（Google News 跳转、YouTube 视频），
-// 财报链接换成国内直连快的源。默认值由服务器按访问 IP 注入（__REGION_DEFAULT__），
-// 手动切换后记忆在 localStorage；?region=cn / ?region=global 可直达指定版本。
-let region = localStorage.getItem("region") || "__REGION_DEFAULT__";
-if(region!=="cn" && region!=="global") region = "global";
+const lang = "zh";  // 全站统一中文（语言切换已移除）
 // sel.video：false 或具体视频 layer（"video" = AI 视频，"video_invest" = 投资视频）
 let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false };
 let counts = {};
@@ -240,12 +228,10 @@ let noteList = [];   // 投资视频解读（/api/vidnotes，人工精选内容�
 let view = "news";       // "news" | "earnings"
 let earnMkt = "all";     // 财报视图的市场筛选
 
-// 从网址参数初始化筛选状态，让 sitemap 里的分类网址（?layer= / ?segment= / ?invest=1 / ?lang=）
+// 从网址参数初始化筛选状态，让 sitemap 里的分类网址（?layer= / ?segment= / ?invest=1）
 // 直接展示对应内容，便于分享与搜索引擎收录。
 (function(){
   const sp = new URLSearchParams(location.search);
-  const l = sp.get("lang"); if(l==="en"||l==="zh") lang = l;
-  const rg = sp.get("region"); if(rg==="cn"||rg==="global"){ region = rg; localStorage.setItem("region",rg); }
   if(sp.get("invest")==="1"){ sel.invest = true; }
   else if(sp.get("notes")==="1"){ sel.notes = true; }
   else if(sp.get("layer")==="video"||sp.get("layer")==="video_invest"){ sel.video = sp.get("layer"); }
@@ -253,7 +239,6 @@ let earnMkt = "all";     // 财报视图的市场筛选
     if(sp.get("layer")) sel.layer = sp.get("layer");
     if(sp.get("segment")) sel.segment = sp.get("segment");
   }
-  if(region==="cn") sel.video = false; // 国内版无视频栏目
 })();
 
 const $ = s => document.querySelector(s);
@@ -263,8 +248,6 @@ function applyI18n(){
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
-  $("#langBtn").textContent = lang==="zh" ? "EN" : "中文";
-  $("#regionBtn").textContent = region==="cn" ? t("toGlobal") : t("toCN");
   $("#earnBtn").textContent = view==="earnings" ? t("news") : t("earnings");
   if(view==="earnings") $("#q").placeholder = t("searchCo");
 }
@@ -277,18 +260,14 @@ function renderNav(){
   html += '<div class="navitem '+(sel.invest?'on':'')+'" data-invest="1">'+
     '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+invLabel+'</span></span>'+
     '<span class="n">'+(investCount||0)+'</span></div>';
-  if(region!=="cn"){ // 国内版不显示视频栏目（YouTube 在大陆打不开）
-    const vidLabel = lang==="zh" ? "📺 AI 视频" : "📺 AI Videos";
-    html += '<div class="navitem '+(sel.video==="video"?'on':'')+'" data-video="video">'+
-      '<span class="label"><span class="dot" style="background:var(--video)"></span><span>'+vidLabel+'</span></span>'+
-      '<span class="n">'+(videoCount||0)+'</span></div>';
-    const viLabel = lang==="zh" ? "📈 投资视频" : "📈 Invest Videos";
-    html += '<div class="navitem '+(sel.video==="video_invest"?'on':'')+'" data-video="video_invest">'+
-      '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+viLabel+'</span></span>'+
-      '<span class="n">'+(vinvestCount||0)+'</span></div>';
-  }
-  if(noteList.length){ // 投资视频解读：文字总结两个版本都能看，有内容才显示
-    const ntLabel = lang==="zh" ? "🎬 投资视频解读" : "🎬 Video Notes";
+  html += '<div class="navitem '+(sel.video==="video"?'on':'')+'" data-video="video">'+
+    '<span class="label"><span class="dot" style="background:var(--video)"></span><span>📺 AI 视频</span></span>'+
+    '<span class="n">'+(videoCount||0)+'</span></div>';
+  html += '<div class="navitem '+(sel.video==="video_invest"?'on':'')+'" data-video="video_invest">'+
+    '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>📈 投资视频</span></span>'+
+    '<span class="n">'+(vinvestCount||0)+'</span></div>';
+  if(noteList.length){ // 投资视频解读：人工精选内容，有内容才显示
+    const ntLabel = "🎬 投资视频解读";
     html += '<div class="navitem '+(sel.notes?'on':'')+'" data-notes="1">'+
       '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+ntLabel+'</span></span>'+
       '<span class="n">'+noteList.length+'</span></div>';
@@ -325,7 +304,7 @@ function layerCount(layer){ return Object.entries(counts).filter(([k])=>k.starts
 
 async function loadStats(){
   try{
-    const r = await fetch("/api/stats?lang="+lang+"&region="+region); const d = await r.json();
+    const r = await fetch("/api/stats?lang="+lang); const d = await r.json();
     counts = {};
     (d.breakdown||[]).forEach(row=>{ counts[(row.layer||"other")+"/"+(row.segment||"_")]=row.n; });
     investCount = d.invest||0;
@@ -347,7 +326,6 @@ async function load(){
   }
   const q = $("#q").value.trim(); if(q) p.set("q", q);
   p.set("lang", lang);
-  p.set("region", region);
   p.set("limit","100");
   try{
     const r = await fetch("/api/news?"+p.toString());
@@ -463,20 +441,18 @@ function earnNavItem(k,label,n){
   return '<div class="navitem '+(earnMkt===k?'on':'')+'" data-mkt="'+k+'">'+
     '<span class="label"><span>'+label+'</span></span><span class="n">'+n+'</span></div>';
 }
-// 每家公司的财报链接（可多个），按版本切换：
-// 国际版 — 美股给「官方文件(SEC EDGAR 原始申报)」+「财报数据(stockanalysis)」；A股同花顺 F10；港股雪球。
-// 国内版 — 美股/港股都用雪球（大陆直连快，SEC/stockanalysis 在大陆慢或不稳）；A股同花顺 F10。
+// 每家公司的财报链接（可多个）：
+// 美股给「官方文件(SEC EDGAR 原始申报)」+「财报数据(stockanalysis)」；A股同花顺 F10；港股雪球。
 function finLinks(c){
-  const zh = lang==="zh";
   if(c.mkt==="a") return [
-    {label:(zh?"查看财报":"Financials")+" →", url:"https://basic.10jqka.com.cn/"+c.tk+"/finance.html"},
+    {label:"查看财报 →", url:"https://basic.10jqka.com.cn/"+c.tk+"/finance.html"},
   ];
-  if(c.mkt==="us" && region!=="cn") return [
-    {label:(zh?"官方文件":"SEC Filings")+" →", url:"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker="+c.tk+"&type=&dateb=&owner=include&count=40"},
-    {label:(zh?"财报数据":"Financials")+" →", url:"https://stockanalysis.com/stocks/"+c.tk+"/financials/"},
+  if(c.mkt==="us") return [
+    {label:"官方文件 →", url:"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker="+c.tk+"&type=&dateb=&owner=include&count=40"},
+    {label:"财报数据 →", url:"https://stockanalysis.com/stocks/"+c.tk+"/financials/"},
   ];
   return [
-    {label:(zh?"查看财报":"Financials")+" →", url:"https://xueqiu.com/S/"+c.tk},
+    {label:"查看财报 →", url:"https://xueqiu.com/S/"+c.tk},
   ];
 }
 function renderEarnings(){
@@ -506,18 +482,6 @@ function renderEarnings(){
   $("#earnings").innerHTML = html || '<div class="empty">'+t("noCo")+'</div>';
 }
 $("#earnBtn").onclick = ()=>{ setView(view==="news"?"earnings":"news"); };
-$("#langBtn").onclick = ()=>{
-  lang = lang==="zh"?"en":"zh"; localStorage.setItem("lang",lang); applyI18n();
-  if(view==="earnings"){ renderEarnNav(); renderEarnings(); }
-  else { loadStats(); load(); }
-};
-$("#regionBtn").onclick = ()=>{
-  region = region==="cn"?"global":"cn"; localStorage.setItem("region",region);
-  if(region==="cn" && sel.video){ sel = {layer:"all", segment:"all", invest:false, video:false, notes:false}; }
-  applyI18n();
-  if(view==="earnings"){ renderEarnNav(); renderEarnings(); }
-  else { loadStats(); load(); }
-};
 $("#q").oninput = (()=>{ let tmr; return ()=>{ clearTimeout(tmr);
   tmr=setTimeout(()=>{ view==="earnings" ? renderEarnings() : load(); },300); }; })();
 $("#refreshBtn").onclick = async ()=>{

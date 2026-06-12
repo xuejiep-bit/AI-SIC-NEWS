@@ -56,9 +56,9 @@ interface Translated { titleZh: string; summaryZh: string | null; layer: Layer; 
 // 单条翻译。失败（模型报错 / JSON 解析失败 / 无标题）时抛出，由 runTranslate 记为 failed 并重试。
 async function translateOne(env: TranslateEnv, model: string, item: { title: string; summary: string }): Promise<Translated> {
   const user = `标题：${item.title}\n摘要：${item.summary || "（无）"}`;
-  // env.AI.run 的类型按具体模型名做了重载，这里用字符串模型名，故把方法转成宽松签名调用。
-  const run = env.AI.run as unknown as (m: string, i: unknown) => Promise<{ response?: string }>;
-  const resp = await run(model, {
+  // 必须以方法形式在 env.AI 上调用（保留 this 绑定）；这里只放宽 run 的入参类型以接受字符串模型名。
+  const ai = env.AI as unknown as { run(m: string, i: unknown): Promise<{ response?: string } | string> };
+  const resp = await ai.run(model, {
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: user },

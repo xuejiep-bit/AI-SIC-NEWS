@@ -65,7 +65,15 @@ async function translateOne(env: TranslateEnv, model: string, item: { title: str
     ],
     max_tokens: 512,
   });
-  const text = typeof resp === "string" ? resp : resp?.response ?? "";
+  // 兼容 Workers AI 的多种返回形态：response 可能是字符串，也可能是模型已解析好的 JSON 对象
+  //（要求只输出 JSON 时部分模型会直接给对象）；还有 OpenAI 风格的 choices 结构。
+  const r = resp as { response?: unknown; choices?: { message?: { content?: unknown } }[] };
+  let text: string;
+  if (typeof resp === "string") text = resp;
+  else if (typeof r?.response === "string") text = r.response;
+  else if (r?.response && typeof r.response === "object") text = JSON.stringify(r.response);
+  else if (typeof r?.choices?.[0]?.message?.content === "string") text = r.choices[0].message.content as string;
+  else text = JSON.stringify(resp ?? "");
   const { titleZh, summaryZh, category } = parseResult(text);
   if (!titleZh) throw new Error("missing title_zh");
   let layer: Layer = "other";

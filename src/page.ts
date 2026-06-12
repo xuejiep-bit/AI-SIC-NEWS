@@ -58,6 +58,31 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .tags { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:11px; color:var(--dim); margin-top:2px; }
   .chip { padding:2px 8px; border-radius:20px; font-weight:600; color:#fff; }
   .empty { color:var(--dim); text-align:center; padding:60px 0; }
+  /* ── 首页主推区：深度笔记大卡片 ── */
+  #hero { margin-bottom:16px; }
+  #hero .hh { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  #hero .hh h2 { margin:0; font-size:16px; }
+  #hero .hh .more { margin-left:auto; color:var(--acc); font-size:13px; cursor:pointer; }
+  #hero .hh .more:hover { text-decoration:underline; }
+  .hcards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+  .hcard { background:linear-gradient(150deg,var(--panel2),var(--panel)); border:1px solid var(--line);
+    border-radius:14px; padding:18px; cursor:pointer; transition:border-color .15s; }
+  .hcard:hover { border-color:var(--invest); }
+  .hcard .ht { font-size:15.5px; font-weight:700; line-height:1.5; }
+  .hcard .hs { color:var(--dim); font-size:12.5px; line-height:1.6; margin-top:8px;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .hcard .hd { color:var(--dim); font-size:11px; margin-top:10px; display:flex; gap:8px; }
+  /* ── 产业链地图入口横幅 ── */
+  #mapban { display:flex; align-items:center; gap:14px; text-decoration:none; color:var(--txt);
+    background:linear-gradient(90deg,rgba(79,140,255,.16),rgba(54,211,153,.10)); border:1px solid var(--line);
+    border-radius:14px; padding:13px 18px; margin-bottom:16px; transition:border-color .15s; }
+  #mapban:hover { border-color:var(--acc); }
+  #mapban .mi { font-size:24px; }
+  #mapban .ms { color:var(--dim); font-size:12px; }
+  #mapban .go { color:var(--acc); font-size:13px; flex:none; }
+  /* ── 地区筛选 ── */
+  .seg { display:flex; gap:6px; }
+  .seg .btn { padding:6px 12px; }
   .cards.notes { grid-template-columns:1fr; max-width:820px; }
   .card.note .pts { margin:4px 0 0; padding-left:20px; color:var(--txt); font-size:13px; line-height:1.7; }
   .card.note .pts li::marker { color:var(--invest); }
@@ -89,8 +114,17 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <div class="wrap">
   <aside id="nav"></aside>
   <main>
+    <!-- 顶部主推区：深度笔记（默认首页视图才显示） -->
+    <div id="hero" style="display:none"></div>
+    <!-- 产业链地图入口横幅 -->
+    <a id="mapban" href="/map" style="display:none">
+      <span class="mi">🗺️</span>
+      <span><b>AI 产业链地图</b><br/><span class="ms">上游基础设施 → 中游模型 → 下游应用，一图看懂全链路，点击任一环节看公司与最新动态</span></span>
+      <span class="spacer"></span><span class="go">进入 →</span>
+    </a>
     <div class="toolbar">
       <input type="search" id="q" data-i18n-ph="search" placeholder="搜索关键词…" />
+      <div class="seg" id="regionSeg"></div>
       <div class="meta" id="status"></div>
       <div class="spacer"></div>
       <div class="meta" id="count"></div>
@@ -220,6 +254,7 @@ const MKT = [
 const lang = "zh";  // 全站统一中文（语言切换已移除）
 // sel.video：false 或具体视频 layer（"video" = AI 视频，"video_invest" = 投资视频）
 let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false };
+let regionFilter = "all"; // 资讯流地区筛选：all | cn(国内) | global(国际)，与产业链分类叠加
 let counts = {};
 let investCount = 0;
 let videoCount = 0;
@@ -232,6 +267,7 @@ let earnMkt = "all";     // 财报视图的市场筛选
 // 直接展示对应内容，便于分享与搜索引擎收录。
 (function(){
   const sp = new URLSearchParams(location.search);
+  const rg = sp.get("region"); if(rg==="cn"||rg==="global") regionFilter = rg;
   if(sp.get("invest")==="1"){ sel.invest = true; }
   else if(sp.get("notes")==="1"){ sel.notes = true; }
   else if(sp.get("layer")==="video"||sp.get("layer")==="video_invest"){ sel.video = sp.get("layer"); }
@@ -302,9 +338,46 @@ function navItem(layer,segment,label,n,color,sub){
 function totalCount(){ return Object.values(counts).reduce((a,b)=>a+b,0); }
 function layerCount(layer){ return Object.entries(counts).filter(([k])=>k.startsWith(layer+"/")).reduce((a,[,v])=>a+v,0); }
 
+// ── 首页主推区 + 地图横幅（仅默认首页视图显示，筛选/搜索/其它视图时收起）──
+function isHome(){
+  return view==="news" && !sel.invest && !sel.video && !sel.notes
+    && sel.layer==="all" && sel.segment==="all" && !$("#q").value.trim();
+}
+function renderHome(){
+  const home = isHome();
+  $("#hero").style.display = (home && noteList.length) ? "" : "none";
+  $("#mapban").style.display = home ? "flex" : "none";
+  if(home && noteList.length) renderHero();
+}
+function renderHero(){
+  const top = noteList.slice(0,3); // 最新 3 篇（数组头部即最新）
+  let html = '<div class="hh"><h2>📝 深度笔记</h2><span class="more" id="allNotes">查看全部笔记 →</span></div>';
+  html += '<div class="hcards">'+top.map(n=>{
+    const ex = (n.takeaways&&n.takeaways[0]) || (n.summary||"").split("\\n")[0] || "";
+    return '<div class="hcard" data-note="1">'+
+      '<div class="ht">'+esc(n.title)+'</div>'+
+      '<div class="hs">'+esc(ex)+'</div>'+
+      '<div class="hd"><span>'+esc(n.date)+'</span><span>·</span><span>'+esc(n.channel)+'</span></div></div>';
+  }).join("")+'</div>';
+  $("#hero").innerHTML = html;
+  const openNotes = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true}; renderNav(); load(); };
+  $("#allNotes").onclick = openNotes;
+  $("#hero").querySelectorAll(".hcard").forEach(el=>{ el.onclick = openNotes; });
+}
+// 地区筛选按钮（全部 / 国内 / 国际）
+function renderRegionSeg(){
+  const opts = [["all","全部"],["cn","国内"],["global","国际"]];
+  $("#regionSeg").innerHTML = opts.map(([k,label])=>
+    '<button class="btn '+(regionFilter===k?'on':'')+'" data-r="'+k+'">'+label+'</button>').join("");
+  $("#regionSeg").querySelectorAll(".btn").forEach(el=>{
+    el.onclick = ()=>{ regionFilter = el.dataset.r; renderRegionSeg(); loadStats(); load(); };
+  });
+}
+
 async function loadStats(){
   try{
-    const r = await fetch("/api/stats"); const d = await r.json(); // 不再按语言过滤，中英资讯一起统计
+    const p = regionFilter!=="all" ? "?region="+regionFilter : "";
+    const r = await fetch("/api/stats"+p); const d = await r.json(); // 侧栏计数跟随地区筛选
     counts = {};
     (d.breakdown||[]).forEach(row=>{ counts[(row.layer||"other")+"/"+(row.segment||"_")]=row.n; });
     investCount = d.invest||0;
@@ -315,6 +388,7 @@ async function loadStats(){
 }
 
 async function load(){
+  renderHome(); // 同步主推区/地图横幅的显隐
   if(sel.notes){ renderNotes(); return; }
   $("#status").textContent = t("loading");
   const p = new URLSearchParams();
@@ -324,8 +398,9 @@ async function load(){
     if(sel.layer!=="all") p.set("layer", sel.layer);
     if(sel.segment!=="all") p.set("segment", sel.segment);
   }
+  if(regionFilter!=="all") p.set("region", regionFilter); // 地区 × 产业链双维度叠加
   const q = $("#q").value.trim(); if(q) p.set("q", q);
-  p.set("limit","100"); // 不再按语言过滤：英文资讯用翻译后的中文展示，未翻译的先显示原文
+  p.set("limit","100");
 
   try{
     const r = await fetch("/api/news?"+p.toString());
@@ -384,7 +459,7 @@ function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">
 async function loadNotes(){
   try{
     const r = await fetch("/api/vidnotes"); const d = await r.json();
-    if(Array.isArray(d)){ noteList = d; renderNav(); if(sel.notes) renderNotes(); }
+    if(Array.isArray(d)){ noteList = d; renderNav(); renderHome(); if(sel.notes) renderNotes(); }
   }catch(e){}
 }
 function renderNotes(){
@@ -415,6 +490,8 @@ function renderNotes(){
 function setView(v){
   view = v;
   const earn = v==="earnings";
+  if(earn){ $("#hero").style.display="none"; $("#mapban").style.display="none"; }
+  $("#regionSeg").style.display = earn ? "none" : "flex";
   $("#earnings").style.display = earn ? "block" : "none";
   $("#cards").style.display = earn ? "none" : "";
   if(earn) $("#empty").style.display = "none";
@@ -495,7 +572,7 @@ $("#refreshBtn").onclick = async ()=>{
 };
 
 const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
-applyI18n(); loadStats(); loadNotes(); load();
+applyI18n(); renderRegionSeg(); loadStats(); loadNotes(); load();
 </script>
 </body>
 </html>`;

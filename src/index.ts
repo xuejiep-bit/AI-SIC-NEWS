@@ -195,8 +195,9 @@ async function queryNews(env: Env, url: URL) {
 
   const where: string[] = [NOT_VIDEO]; // 资讯视图一律排除视频
   const binds: unknown[] = [];
-  // 国内版：剔除经 Google News 跳转的条目（news.google.com 在大陆无法打开，点了也白点）
-  if (url.searchParams.get("region") === "cn") where.push("link NOT LIKE '%news.google.com%'");
+  // 地区筛选：?region=cn（国内）/ ?region=global（国际），与产业链分类可叠加
+  const region = url.searchParams.get("region");
+  if (region === "cn" || region === "global") { where.push("region = ?"); binds.push(region); }
   if (layer && layer !== "all") { where.push("layer = ?"); binds.push(layer); }
   if (segment && segment !== "all") { where.push("segment = ?"); binds.push(segment); }
   if (lang && lang !== "all") { where.push("lang = ?"); binds.push(lang); }
@@ -216,12 +217,13 @@ async function queryNews(env: Env, url: URL) {
 }
 
 async function queryStats(env: Env, url: URL) {
+  // 资讯统计：排除视频；可叠加地区/语言过滤，让侧栏计数与列表一致
   const lang = url.searchParams.get("lang");
-  const binds = lang && lang !== "all" ? [lang] : [];
-  // 资讯统计：排除视频，叠加语言过滤；国内版同步剔除 Google News 跳转条目，让侧栏计数与列表一致
+  const region = url.searchParams.get("region");
   const conds = [NOT_VIDEO];
-  if (url.searchParams.get("region") === "cn") conds.push("link NOT LIKE '%news.google.com%'");
-  if (lang && lang !== "all") conds.push("lang = ?");
+  const binds: unknown[] = [];
+  if (region === "cn" || region === "global") { conds.push("region = ?"); binds.push(region); }
+  if (lang && lang !== "all") { conds.push("lang = ?"); binds.push(lang); }
   const cond = "WHERE " + conds.join(" AND ");
 
   const { results } = await env.DB.prepare(
@@ -300,6 +302,14 @@ export default {
       if (path === "/" || path === "/index.html") {
         // 全站统一中文，不再有语言/版本切换。
         return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+      if (path === "/map") {
+        // 产业链地图（模块4 实现），先放占位页避免首页入口 404。
+        const ph = `<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AI 产业链地图 · 建设中</title><style>body{margin:0;background:#0b0e14;color:#e6e9f0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.box{text-align:center}.box h1{font-size:22px}.box p{color:#8a93a8}a{color:#4f8cff;text-decoration:none}</style></head>
+<body><div class="box"><h1>🗺️ AI 产业链地图</h1><p>页面建设中，敬请期待。</p><p><a href="/">← 返回首页</a></p></div></body></html>`;
+        return new Response(ph, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
       if (path === "/favicon.svg" || path === "/favicon.ico") {
         return new Response(FAVICON_SVG, {

@@ -1,58 +1,61 @@
-# 临时探针：实测 Yahoo Finance 对美股(KO)/港股(0700.HK)的可用性与字段深度。用完即删。
-import json, urllib.request
+# 临时探针 round 3：测 fundamentals-timeseries（免鉴权年报）+ crumb 鉴权流程（备选）。用完即删。
+import json, time, urllib.request, urllib.parse
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
 
-def get(url):
-    req = urllib.request.Request(url, headers=UA)
+def get(url, headers=None):
+    req = urllib.request.Request(url, headers={**UA, **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
-            return r.status, r.read().decode()
+            return r.status, r.read().decode(), r.headers
     except urllib.error.HTTPError as e:
-        return e.code, e.read().decode()[:300]
+        return e.code, e.read().decode()[:300], e.headers
     except Exception as e:
-        return None, str(e)
+        return None, str(e), {}
+
+TYPES = ",".join([
+    "annualTotalRevenue", "annualNetIncome", "annualNetIncomeCommonStockholders",
+    "annualCurrentAssets", "annualCurrentLiabilities",
+    "annualTotalAssets", "annualTotalLiabilitiesNetMinorityInterest",
+    "annualBasicEPS", "annualDilutedEPS",
+    "annualStockholdersEquity", "annualBasicAverageShares",
+])
+
+p2 = int(time.time())
+p1 = p2 - 86400 * 365 * 15  # 往回 15 年，看实际能给几年
 
 for sym in ["KO", "0700.HK"]:
-    print(f"\n==================== {sym} : chart (price+div) ====================")
-    code, body = get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=2y&interval=1d&events=div")
+    print(f"\n========== {sym} : fundamentals-timeseries (no auth) ==========")
+    url = (f"https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/{sym}"
+           f"?symbol={sym}&type={TYPES}&period1={p1}&period2={p2}")
+    code, body, _ = get(url)
     print("HTTP", code, "size", len(body or ""))
     try:
-        r = json.loads(body)["chart"]["result"][0]
-        m = r["meta"]
-        print("  currency", m.get("currency"), "| price", m.get("regularMarketPrice"), "| name", m.get("longName") or m.get("shortName"))
-        closes = [x for x in r["indicators"]["quote"][0]["close"] if x][-3:]
-        print("  last closes", [round(c,2) for c in closes], "| bars:", len(r.get("timestamp",[])))
-        divs = r.get("events", {}).get("dividends", {})
-        print("  dividend events in 2y:", len(divs))
+        res = json.loads(body)["timeseries"]["result"]
+        for item in res:
+            t = item["meta"]["type"][0]
+            vals = item.get(t) or []
+            pts = [(v["asOfDate"], v["reportedValue"]["raw"]) for v in vals if v]
+            if t in ("annualTotalRevenue", "annualNetIncome", "annualBasicEPS", "annualStockholdersEquity"):
+                print(f"  {t}: {len(pts)} periods -> {pts}")
+            else:
+                print(f"  {t}: {len(pts)} periods")
     except Exception as e:
-        print("  parse error:", e, "| body head:", (body or "")[:200])
+        print("  parse error:", e, "| head:", (body or "")[:200])
 
-    print(f"==================== {sym} : quoteSummary (fundamentals) ====================")
-    mods = "incomeStatementHistory,balanceSheetHistory,defaultKeyStatistics,summaryDetail,financialData,price"
-    code, body = get(f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{sym}?modules={mods}")
-    print("HTTP", code, "size", len(body or ""))
-    try:
-        d = json.loads(body)["quoteSummary"]
-        if d.get("error"):
-            print("  API error:", d["error"])
-        else:
-            res = d["result"][0]
-            ish = res.get("incomeStatementHistory", {}).get("incomeStatementHistory", [])
-            print("  income annual periods:", len(ish))
-            for a in ish[:2]:
-                print("   ", a.get("endDate",{}).get("fmt"), "rev", a.get("totalRevenue",{}).get("raw"), "netIncome", a.get("netIncome",{}).get("raw"))
-            bs = res.get("balanceSheetHistory", {}).get("balanceSheetStatements", [])
-            print("  balance periods:", len(bs))
-            if bs:
-                b = bs[0]
-                print("   curAssets", b.get("totalCurrentAssets",{}).get("raw"), "curLiab", b.get("totalCurrentLiabilities",{}).get("raw"),
-                      "totLiab", b.get("totalLiab",{}).get("raw"), "totAssets", b.get("totalAssets",{}).get("raw"))
-            ks = res.get("defaultKeyStatistics", {})
-            sd = res.get("summaryDetail", {})
-            print("  bookValue", ks.get("bookValue",{}).get("raw"), "| trailingEps", ks.get("trailingEps",{}).get("raw"),
-                  "| priceToBook", ks.get("priceToBook",{}).get("raw"))
-            print("  trailingPE", sd.get("trailingPE",{}).get("raw"), "| divRate", sd.get("dividendRate",{}).get("raw"),
-                  "| divYield", sd.get("dividendYield",{}).get("raw"))
-    except Exception as e:
-        print("  parse error:", e, "| body head:", (body or "")[:300])
+print("\n========== crumb 鉴权流程（备选方案验证） ==========")
+code, body, hdrs = get("https://fc.yahoo.com")
+cookies = []
+for k, v in (hdrs.items() if hdrs else []):
+    if k.lower() == "set-cookie":
+        cookies.append(v.split(";")[0])
+cookie = "; ".join(cookies)
+print("fc.yahoo.com:", code, "| cookie got:", bool(cookie))
+if cookie:
+    code, crumb, _ = get("https://query1.finance.yahoo.com/v1/test/getcrumb", {"Cookie": cookie})
+    print("getcrumb:", code, "| crumb:", (crumb or "")[:16])
+    if code == 200 and crumb:
+        code, body, _ = get(
+            f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/KO?modules=summaryDetail,defaultKeyStatistics&crumb={urllib.parse.quote(crumb)}",
+            {"Cookie": cookie})
+        print("quoteSummary with crumb:", code, "| head:", (body or "")[:120])

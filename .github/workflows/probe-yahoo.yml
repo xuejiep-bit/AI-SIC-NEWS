@@ -1,4 +1,4 @@
-# 临时验证：调用线上 /api/report 实测 Graham 报告生成（美股 KO + 港股 00700）。验证完即删。
+# 临时验证：调用线上 /api/report 实测 Graham 报告（KO + 00700）。验证完即删。
 name: Probe Yahoo
 
 on:
@@ -10,29 +10,17 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for deploy then test live /api/report
+      - name: Test live /api/report
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
-          sleep 45  # 等同一次 push 触发的 deploy 完成
-          SUB=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/subdomain" \
-            | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['subdomain'])")
+          SUB=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/subdomain" | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['subdomain'])")
           BASE="https://aisicnews.$SUB.workers.dev"
           for Q in "symbol=KO" "symbol=00700&market=hk"; do
             echo "=============== /api/report?$Q ==============="
             curl -s --max-time 120 "$BASE/api/report?$Q" -o /tmp/r.json -w "HTTP %{http_code} time %{time_total}s\n"
-            python3 -c "
-import json
-d=json.load(open('/tmp/r.json'))
-if d.get('error'): print('ERROR:', d['error'])
-else:
-    md=d['md']
-    print('symbol:', d.get('symbol'), '| cached:', d.get('cached'), '| md length:', len(md))
-    for line in md.splitlines():
-        if line.startswith('# ') or line.startswith('**日期**') or '强候选' in line or '接近合格' in line or '部分达标' in line or '不符合' in line or line.startswith('### ✅') or line.startswith('### ❌'):
-            print(' ', line[:120])
-"
+            python3 -c "import json;d=json.load(open('/tmp/r.json'));print('ERROR:',d.get('error')) if d.get('error') else print('symbol:',d.get('symbol'),'| cached:',d.get('cached'),'| md len:',len(d['md']))"
+            python3 -c "import json;d=json.load(open('/tmp/r.json'));md=d.get('md','');print(chr(10).join([l[:130] for l in md.splitlines() if l.startswith('# ') or l.startswith('**日期**') or '候选' in l or '达标 (' in l or '不符合' in l or l.startswith('### ✅') or l.startswith('### ❌')][:30]))"
           done

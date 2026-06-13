@@ -7,7 +7,7 @@ export const NOTE_HTML = /* html */ `<!DOCTYPE html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>深度笔记 · AI 链</title>
+<title>大佬观点 · AI 链</title>
 <style>
   :root { --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;
     --txt:#e6e9f0; --dim:#8a93a8; --acc:#4f8cff; --acc2:#36d399; --invest:#f5b301; }

@@ -395,7 +395,7 @@ function renderHome(){
 }
 function renderHero(){
   const top = noteList.slice(0,3); // 最新 3 篇（数组头部即最新）
-  let html = '<div class="hh"><h2>📝 深度笔记</h2><span class="more" id="allNotes">查看全部笔记 →</span></div>';
+  let html = '<div class="hh"><h2>🎙️ 大佬观点</h2><span class="more" id="allNotes">查看全部 →</span></div>';
   html += '<div class="hcards">'+top.map(n=>{
     const ex = (n.takeaways&&n.takeaways[0]) || (n.summary||"").split("\\n")[0] || "";
     return '<a class="hcard" href="/note?id='+encodeURIComponent(n.id)+'">'+

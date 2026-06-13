@@ -6,6 +6,14 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="google-site-verification" content="kfdl_r02WiIyzoQIr02NPLqPGhe6lDbSo47Cj2QI7cE" />
+<meta name="google-site-verification" content="1WLhkGYgNzFlGW6WdOoCBg7fkv5yIkw_9UJzgxGsgWo" />
+<link rel="canonical" href="https://ai.vid2quiz.com/" />
+<meta name="description" content="AI 链 · AIChain —— 面向中文读者的全球 AI 产业链情报站：上游算力芯片到下游应用全链路资讯、投资视频解读、产业链地图与价值分析工具。" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="AI 链 · AIChain" />
+<meta property="og:title" content="AI 链 · AIChain — 全球 AI 产业链情报站" />
+<meta property="og:description" content="上游算力芯片到下游应用全链路资讯、投资视频解读、产业链地图与价值分析工具。" />
+<meta property="og:url" content="https://ai.vid2quiz.com/" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>AI 链 · AIChain — AI 产业链实时资讯</title>
 <style>

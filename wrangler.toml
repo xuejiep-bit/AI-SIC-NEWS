@@ -4,6 +4,12 @@ compatibility_date = "2024-11-01"
 
 # 静态前端资源（public 目录）由 Worker 直接 inline 提供，这里不单独配置 assets。
 
+# 自定义域名：把本站绑到 ai.vid2quiz.com（部署时由 wrangler 自动创建域名+证书）。
+# 用子域名，不影响 vid2quiz.com 根域名上原有的项目。
+routes = [
+  { pattern = "ai.vid2quiz.com", custom_domain = true },
+]
+
 # 定时抓取：每小时触发一次 scheduled() 拉取并分类入库。
 [triggers]
 crons = ["0 * * * *"]

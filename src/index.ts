@@ -9,6 +9,7 @@ import { MAP_HTML } from "./mappage";
 import MAP_CONFIG from "./mapconfig.json";
 import { VID_NOTES } from "./vidnotes";
 import { TOOLS_HTML } from "./toolspage";
+import { NOTE_HTML } from "./notepage";
 import { generateGrahamReport } from "./graham";
 import { normalizeSymbol } from "./finance";
 
@@ -316,6 +317,10 @@ export default {
       if (path === "/api/mapdata") {
         // 地图节点配置（含说明、公司、笔记链接），供 /map 前端渲染
         return json(MAP_CONFIG);
+      }
+      if (path === "/note") {
+        // 单篇深度笔记阅读页（前端按 ?id= 从 /api/vidnotes 取数渲染）
+        return new Response(NOTE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
       if (path === "/tools") {
         // 投资分析工具页（阶段1: Graham；CAN SLIM / 海龟 后续接入）

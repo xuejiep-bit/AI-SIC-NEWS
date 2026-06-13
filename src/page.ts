@@ -51,8 +51,11 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
     display:flex; flex-direction:column; gap:8px; transition:border-color .15s; }
   .card:hover { border-color:var(--acc); }
-  .card a.t { color:var(--txt); text-decoration:none; font-weight:600; font-size:14.5px; line-height:1.4; }
+  .card a.t, .card .t { color:var(--txt); text-decoration:none; font-weight:600; font-size:14.5px; line-height:1.4; }
   .card a.t:hover { color:var(--acc); }
+  .card.note { color:inherit; text-decoration:none; cursor:pointer; }
+  .card.note:hover { border-color:var(--invest); }
+  .card.note .readmore { color:var(--invest); font-size:12.5px; margin-top:2px; }
   .card .s { color:var(--dim); font-size:12.5px; line-height:1.5;
     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .tags { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:11px; color:var(--dim); margin-top:2px; }
@@ -65,7 +68,8 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   #hero .hh .more { margin-left:auto; color:var(--acc); font-size:13px; cursor:pointer; }
   #hero .hh .more:hover { text-decoration:underline; }
   .hcards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
-  .hcard { background:linear-gradient(150deg,var(--panel2),var(--panel)); border:1px solid var(--line);
+  .hcard { display:block; text-decoration:none; color:inherit;
+    background:linear-gradient(150deg,var(--panel2),var(--panel)); border:1px solid var(--line);
     border-radius:14px; padding:18px; cursor:pointer; transition:border-color .15s; }
   .hcard:hover { border-color:var(--invest); }
   .hcard .ht { font-size:15.5px; font-weight:700; line-height:1.5; }
@@ -116,10 +120,15 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .co .fin a { color:var(--acc); font-size:12.5px; text-decoration:none; }
   .co .fin a:hover { text-decoration:underline; }
   @media (max-width:760px){ aside{display:none;} .wrap{display:block;} }
+  /* 侧栏折叠：折叠后隐藏 aside，main 自动占满 */
+  #navToggle { font-size:15px; line-height:1; padding:7px 11px; }
+  .wrap.navcollapsed aside { display:none; }
+  @media (max-width:760px){ #navToggle{ display:none; } }
 </style>
 </head>
 <body>
 <header>
+  <button class="btn" id="navToggle" title="折叠 / 展开侧栏" aria-label="折叠侧栏">«</button>
   <div class="logo" aria-hidden="true">AI</div>
   <div>
     <h1 data-i18n="title">AI 链</h1>
@@ -134,8 +143,8 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   <main>
     <!-- 订阅横幅：主内容区第一屏最顶部，进站即见（财报视图下隐藏） -->
     <div id="subhero" class="subbox subhero" data-src="top">
-      <div class="sl"><div class="big">📮 AI 链 · 周报</div>
-      <div class="st">每周一封，精选本周全球 AI 产业链最值得看的信号</div></div>
+      <div class="sl"><div class="big">📮 AI 链 · 日报</div>
+      <div class="st">每个交易日一封，精选当日全球 AI 产业链最值得看的信号</div></div>
       <input type="email" class="sub-email" placeholder="输入邮箱…" />
       <button class="btn sub-btn">免费订阅</button>
       <span class="sub-msg"></span>
@@ -381,20 +390,19 @@ function renderHero(){
   let html = '<div class="hh"><h2>📝 深度笔记</h2><span class="more" id="allNotes">查看全部笔记 →</span></div>';
   html += '<div class="hcards">'+top.map(n=>{
     const ex = (n.takeaways&&n.takeaways[0]) || (n.summary||"").split("\\n")[0] || "";
-    return '<div class="hcard" data-note="1">'+
+    return '<a class="hcard" href="/note?id='+encodeURIComponent(n.id)+'">'+
       '<div class="ht">'+esc(n.title)+'</div>'+
       '<div class="hs">'+esc(ex)+'</div>'+
-      '<div class="hd"><span>'+esc(n.date)+'</span><span>·</span><span>'+esc(n.channel)+'</span></div></div>';
+      '<div class="hd"><span>'+esc(n.date)+'</span><span>·</span><span>'+esc(n.channel)+'</span></div></a>';
   }).join("")+'</div>'; // 订阅入口已移至顶部导航常驻，主推区不再重复放置
   $("#hero").innerHTML = html;
-  const openNotes = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true}; renderNav(); load(); };
-  $("#allNotes").onclick = openNotes;
-  $("#hero").querySelectorAll(".hcard").forEach(el=>{ el.onclick = openNotes; });
+  // 「查看全部笔记」进入站内笔记列表；单张卡片进入独立笔记页（上面的 <a>）
+  $("#allNotes").onclick = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true}; renderNav(); load(); };
 }
 // ── 邮件订阅（模块5：第一版仅收集邮箱入库，不自动发信）──
 function subFormHtml(source){
   return '<div class="subbox" data-src="'+source+'">'+
-    '<span class="st">📮 每周一封，精选本周全球 AI 产业链最值得看的信号</span>'+
+    '<span class="st">📮 每个交易日一封，精选当日全球 AI 产业链最值得看的信号</span>'+
     '<input type="email" class="sub-email" placeholder="输入邮箱…" />'+
     '<button class="btn sub-btn">订阅</button>'+
     '<span class="sub-msg"></span></div>';
@@ -532,17 +540,17 @@ function renderNotes(){
     (n.takeaways||[]).join("")+(n.tickers||[]).join("")).toLowerCase().includes(q));
   $("#empty").style.display = list.length? "none":"block";
   $("#count").textContent = I18N[lang].count(list.length);
+  // 列表只作索引：标题 + 标签 + 首条要点预览，点击进入独立笔记页放大阅读
   box.innerHTML = list.map(n=>{
     const tks = (n.tickers||[]).map(tk=>'<span class="chip" style="background:var(--invest)">'+esc(tk)+'</span>').join("");
-    const pts = (n.takeaways||[]).map(p=>'<li>'+esc(p)+'</li>').join("");
-    const paras = (n.summary||"").split("\\n").filter(s=>s.trim()).map(s=>'<p>'+esc(s)+'</p>').join("");
-    return '<div class="card note" id="note-'+esc(n.id)+'">'+
-      '<a class="t" href="'+n.url+'" target="_blank" rel="noopener">🎬 '+esc(n.title)+'</a>'+
+    const ex = (n.takeaways&&n.takeaways[0]) || (n.summary||"").split("\\n")[0] || "";
+    return '<a class="card note" href="/note?id='+encodeURIComponent(n.id)+'" style="text-decoration:none">'+
+      '<div class="t">🎬 '+esc(n.title)+'</div>'+
       '<div class="tags">'+tks+'<span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
       '<span>·</span><span>'+esc(n.videoTitle)+'</span></div>'+
-      (pts?'<ul class="pts">'+pts+'</ul>':'')+
-      '<div class="full">'+paras+'</div>'+
-      '</div>';
+      '<div class="s">'+esc(ex)+'</div>'+
+      '<div class="readmore">阅读全文 →</div>'+
+      '</a>';
   }).join("") + subFormHtml("notes"); // 笔记列表底部：邮件订阅入口
   wireSubForms();
   // 来自地图页的 ?note=<id> 直达：滚动到对应笔记并高亮
@@ -638,6 +646,15 @@ $("#refreshBtn").onclick = async ()=>{
   catch(e){ $("#status").textContent = String(e); }
   $("#refreshBtn").disabled = false;
 };
+
+// 侧栏折叠（桌面端），记忆在 localStorage
+(function(){
+  const wrap = document.querySelector(".wrap");
+  const apply = c => { wrap.classList.toggle("navcollapsed", c); $("#navToggle").textContent = c ? "»" : "«"; };
+  let collapsed = localStorage.getItem("navCollapsed")==="1";
+  apply(collapsed);
+  $("#navToggle").onclick = ()=>{ collapsed=!collapsed; localStorage.setItem("navCollapsed", collapsed?"1":"0"); apply(collapsed); };
+})();
 
 const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
 applyI18n(); wireSubForms(); renderRegionSeg(); loadStats(); loadNotes(); load();

@@ -108,7 +108,7 @@ function renderDetail(){
     : '<span class="todo" style="color:var(--dim);font-size:13px">待补充</span>';
   // 笔记 = 自动关联（笔记的 segs 含本环节）+ mapconfig.json 里手动配置的链接
   const auto = NOTES.filter(v=>(v.segs||[]).includes(n.category_key))
-    .map(v=>({ title:v.title, url:"/?notes=1&note="+encodeURIComponent(v.id) }));
+    .map(v=>({ title:v.title, url:"/note?id="+encodeURIComponent(v.id) }));
   const links = auto.concat(n.note_links||[]);
   const notes = links.length
     ? links.map(x=>'<a href="'+x.url+'">📝 '+esc(x.title)+'</a>').join("")

@@ -355,10 +355,10 @@ export default {
         });
       }
       if (path === "/sitemap.xml") {
-        return new Response(sitemapXml(url.origin), { headers: { "content-type": "application/xml; charset=utf-8" } });
+        return new Response(sitemapXml(url.origin.replace(/^http:/, "https:")), { headers: { "content-type": "application/xml; charset=utf-8" } });
       }
       if (path === "/robots.txt") {
-        return new Response(robotsTxt(url.origin), { headers: { "content-type": "text/plain; charset=utf-8" } });
+        return new Response(robotsTxt(url.origin.replace(/^http:/, "https:")), { headers: { "content-type": "text/plain; charset=utf-8" } });
       }
       if (path === "/api/vidnotes") return json(VID_NOTES);
       // ── 模块5：邮件订阅（仅收集入库，不自动发信）──

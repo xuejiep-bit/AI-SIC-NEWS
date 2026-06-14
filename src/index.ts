@@ -12,6 +12,7 @@ import { TOOLS_HTML } from "./toolspage";
 import { NOTE_HTML } from "./notepage";
 import { generateGrahamReport } from "./graham";
 import { generateCanslimReport, computeUniverseReturns } from "./canslim";
+import { generateTurtleReport } from "./turtle";
 import { normalizeSymbol } from "./finance";
 
 export interface Env {
@@ -333,18 +334,24 @@ export default {
         const strategy = url.searchParams.get("strategy") || "graham";
         if (!rawSym) return json({ error: "缺少股票代码" }, 400);
         if (!/^[A-Za-z0-9.\-]{1,12}$/.test(rawSym)) return json({ error: "代码格式不正确" }, 400);
-        if (strategy !== "graham" && strategy !== "canslim") return json({ error: "该策略即将上线" }, 400);
+        if (strategy !== "graham" && strategy !== "canslim" && strategy !== "turtle") return json({ error: "该策略即将上线" }, 400);
         const mParam = url.searchParams.get("market");
         const market: "us" | "hk" = mParam === "hk" || (mParam !== "us" && /^\d+$/.test(rawSym.replace(/\.HK$/i, ""))) ? "hk" : "us";
+        // 海龟可选自定义账户资金（默认沿用脚本的 US$510 / HK$4000）
+        const acctRaw = parseInt(url.searchParams.get("account") || "", 10);
+        const account = Number.isFinite(acctRaw) && acctRaw > 0 ? acctRaw : undefined;
         const sym = normalizeSymbol(rawSym, market);
         const day = new Date().toISOString().slice(0, 10);
-        const key = `${strategy}:${sym}:${day}`;
+        // 海龟报告随账户金额变化，缓存键带上账户
+        const key = strategy === "turtle" ? `turtle:${sym}:${account || "def"}:${day}` : `${strategy}:${sym}:${day}`;
         const hit = await env.DB.prepare(`SELECT md FROM reports WHERE k = ?`).bind(key).first<{ md: string }>();
         if (hit?.md) return json({ ok: true, cached: true, symbol: sym, md: hit.md });
         try {
           let md: string;
           if (strategy === "graham") {
             md = await generateGrahamReport(rawSym, market);
+          } else if (strategy === "turtle") {
+            md = await generateTurtleReport(rawSym, market, account);
           } else {
             // CAN SLIM 需要 RS 标杆池表现（要拉几十只股票）。免费版单次请求 ≤50 子请求，
             // 所以「算标杆池」与「出报告」分两次请求完成：标杆池缺失时本次只算并缓存，返回

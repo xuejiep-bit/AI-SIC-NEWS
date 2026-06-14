@@ -68,8 +68,9 @@ export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
     <select id="strategy">
       <option value="graham">Graham 价值投资</option>
       <option value="canslim">CAN SLIM 成长动量</option>
-      <option value="turtle" disabled>海龟交易（即将上线）</option>
+      <option value="turtle">海龟交易（趋势跟随）</option>
     </select>
+    <input id="account" type="number" min="1" placeholder="账户资金(可选)" style="display:none;width:150px" />
     <button class="btn" id="go">生成报告</button>
   </div>
   <div class="hint">
@@ -150,6 +151,8 @@ async function run(){
   try{
     const p = new URLSearchParams({ symbol: sym, strategy });
     if(market !== "auto") p.set("market", market);
+    const acct = $("#account").value.trim();
+    if(strategy==="turtle" && acct) p.set("account", acct);
     let r = await fetch("/api/report?" + p.toString());
     let d = await r.json();
     // CAN SLIM 首次需先算 RS 基准池（单独一次请求），返回 preparing 时自动重试一次
@@ -178,6 +181,10 @@ async function run(){
 }
 $("#go").onclick = run;
 $("#sym").addEventListener("keydown", e=>{ if(e.key==="Enter") run(); });
+// 海龟策略才显示「账户资金」输入框（其它策略用不到）
+$("#strategy").addEventListener("change", ()=>{
+  $("#account").style.display = $("#strategy").value==="turtle" ? "" : "none";
+});
 </script>
 </body>
 </html>`;

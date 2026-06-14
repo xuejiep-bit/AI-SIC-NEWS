@@ -11,6 +11,7 @@ import { VID_NOTES } from "./vidnotes";
 import { TOOLS_HTML } from "./toolspage";
 import { NOTE_HTML } from "./notepage";
 import { generateGrahamReport } from "./graham";
+import { generateCanslimReport, computeUniverseReturns } from "./canslim";
 import { normalizeSymbol } from "./finance";
 
 export interface Env {
@@ -332,7 +333,7 @@ export default {
         const strategy = url.searchParams.get("strategy") || "graham";
         if (!rawSym) return json({ error: "缺少股票代码" }, 400);
         if (!/^[A-Za-z0-9.\-]{1,12}$/.test(rawSym)) return json({ error: "代码格式不正确" }, 400);
-        if (strategy !== "graham") return json({ error: "该策略即将上线，当前仅支持 Graham" }, 400);
+        if (strategy !== "graham" && strategy !== "canslim") return json({ error: "该策略即将上线" }, 400);
         const mParam = url.searchParams.get("market");
         const market: "us" | "hk" = mParam === "hk" || (mParam !== "us" && /^\d+$/.test(rawSym.replace(/\.HK$/i, ""))) ? "hk" : "us";
         const sym = normalizeSymbol(rawSym, market);
@@ -341,7 +342,23 @@ export default {
         const hit = await env.DB.prepare(`SELECT md FROM reports WHERE k = ?`).bind(key).first<{ md: string }>();
         if (hit?.md) return json({ ok: true, cached: true, symbol: sym, md: hit.md });
         try {
-          const md = await generateGrahamReport(rawSym, market);
+          let md: string;
+          if (strategy === "graham") {
+            md = await generateGrahamReport(rawSym, market);
+          } else {
+            // CAN SLIM 需要 RS 标杆池表现；同市场同一天只算一次，缓存到 reports 表
+            const uniKey = `rsuniv:${market}:${day}`;
+            const uniHit = await env.DB.prepare(`SELECT md FROM reports WHERE k = ?`).bind(uniKey).first<{ md: string }>();
+            let returns: Record<string, number>;
+            if (uniHit?.md) {
+              returns = JSON.parse(uniHit.md);
+            } else {
+              returns = await computeUniverseReturns(market);
+              await env.DB.prepare(`INSERT OR REPLACE INTO reports (k, md, created_at) VALUES (?, ?, ?)`)
+                .bind(uniKey, JSON.stringify(returns), Date.now()).run();
+            }
+            md = await generateCanslimReport(rawSym, market, returns);
+          }
           await env.DB.prepare(`INSERT OR REPLACE INTO reports (k, md, created_at) VALUES (?, ?, ?)`)
             .bind(key, md, Date.now()).run();
           return json({ ok: true, cached: false, symbol: sym, md });

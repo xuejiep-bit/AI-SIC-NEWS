@@ -1,0 +1,27 @@
+# 临时验证：调用线上 /api/report?strategy=canslim 实测 CAN SLIM（美股+港股）。验证完即删。
+name: Verify CANSLIM
+
+on:
+  push:
+    branches: [claude/dreamy-cray-GFpRu]
+    paths: [.github/workflows/verify-canslim.yml]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test live canslim report
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -e
+          sleep 55
+          SUB=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/subdomain" | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['subdomain'])")
+          BASE="https://aisicnews.$SUB.workers.dev"
+          for Q in "symbol=NVDA&strategy=canslim" "symbol=KO&strategy=canslim" "symbol=00700&market=hk&strategy=canslim"; do
+            echo "=============== /api/report?$Q ==============="
+            curl -s --max-time 150 "$BASE/api/report?$Q" -o /tmp/r.json -w "HTTP %{http_code} time %{time_total}s\n"
+            python3 -c "import json;d=json.load(open('/tmp/r.json'));print('ERROR:',d.get('error')) if d.get('error') else print('symbol:',d.get('symbol'),'| md len:',len(d['md']))"
+            python3 -c "import json;d=json.load(open('/tmp/r.json'));md=d.get('md','');print(chr(10).join([l[:120] for l in md.splitlines() if l.startswith('**日期**') or '关注' in l or '候选' in l or '观察名单' in l or '暂不考虑' in l or '空仓' in l or 'RS Rating' in l or l.startswith('### ✅') or l.startswith('### ❌')][:30]))"
+          done

@@ -67,7 +67,7 @@ export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
     </select>
     <select id="strategy">
       <option value="graham">Graham 价值投资</option>
-      <option value="canslim" disabled>CAN SLIM（即将上线）</option>
+      <option value="canslim">CAN SLIM 成长动量</option>
       <option value="turtle" disabled>海龟交易（即将上线）</option>
     </select>
     <button class="btn" id="go">生成报告</button>

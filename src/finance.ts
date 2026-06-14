@@ -155,3 +155,72 @@ export async function fetchFx(from: string, to: string): Promise<number | null> 
     return null;
   }
 }
+
+// ── CAN SLIM / 海龟 需要的日线 OHLCV ───────────────────────
+export interface Daily {
+  dates: number[]; close: number[]; high: number[]; low: number[]; volume: number[];
+  currency: string; name: string; price: number;
+}
+
+// 拉日线（默认近 2 年，约 500 个交易日，够算 MA200/52周高/RS）。benchmark 传 "SPY"/"^HSI" 等。
+export async function fetchDaily(sym: string, range = "2y"): Promise<Daily> {
+  const r = await yfetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=1d`);
+  if (!r.ok) throw new Error(`行情接口 HTTP ${r.status}（代码可能不存在）`);
+  const d = await r.json() as any;
+  const res = d?.chart?.result?.[0];
+  if (!res) throw new Error(d?.chart?.error?.description || "行情数据为空");
+  const ts: number[] = res.timestamp || [];
+  const q = res.indicators?.quote?.[0] || {};
+  const dates: number[] = [], close: number[] = [], high: number[] = [], low: number[] = [], volume: number[] = [];
+  for (let i = 0; i < ts.length; i++) {
+    const c = q.close?.[i];
+    if (c == null) continue; // 跳过停牌/缺口日
+    dates.push(ts[i]); close.push(c);
+    high.push(q.high?.[i] ?? c); low.push(q.low?.[i] ?? c); volume.push(q.volume?.[i] ?? 0);
+  }
+  const meta = res.meta || {};
+  return {
+    dates, close, high, low, volume,
+    currency: String(meta.currency || "USD"),
+    name: String(meta.longName || meta.shortName || ""),
+    price: Number(meta.regularMarketPrice ?? close[close.length - 1]),
+  };
+}
+
+export interface FinPoint { date: string; eps?: number; netIncome?: number; revenue?: number; equity?: number }
+
+// 拉季度 + 年度财报时间序列（EPS / 净利 / 营收 / 净资产），按日期倒序（最新在前）。
+export async function fetchFin(sym: string): Promise<{ annual: FinPoint[]; quarterly: FinPoint[] }> {
+  const types = [
+    "annualBasicEPS", "annualNetIncome", "annualTotalRevenue", "annualStockholdersEquity",
+    "quarterlyBasicEPS", "quarterlyNetIncome", "quarterlyTotalRevenue",
+  ].join(",");
+  const now = Math.floor(Date.now() / 1000);
+  const url = `https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${encodeURIComponent(sym)}` +
+    `?symbol=${encodeURIComponent(sym)}&type=${types}&period1=${now - 86400 * 365 * 12}&period2=${now}`;
+  const r = await yfetch(url);
+  if (!r.ok) return { annual: [], quarterly: [] };
+  const d = await r.json() as any;
+  const results = d?.timeseries?.result;
+  if (!Array.isArray(results)) return { annual: [], quarterly: [] };
+
+  const build = (prefix: "annual" | "quarterly"): FinPoint[] => {
+    const byDate: Record<string, FinPoint> = {};
+    const map: Record<string, keyof FinPoint> = {
+      [prefix + "BasicEPS"]: "eps", [prefix + "NetIncome"]: "netIncome",
+      [prefix + "TotalRevenue"]: "revenue", [prefix + "StockholdersEquity"]: "equity",
+    };
+    for (const [type, field] of Object.entries(map)) {
+      const item = results.find((x: any) => x?.meta?.type?.[0] === type);
+      if (!item) continue;
+      for (const v of item[type] || []) {
+        if (v && v.asOfDate && v.reportedValue?.raw != null) {
+          byDate[v.asOfDate] = byDate[v.asOfDate] || { date: v.asOfDate };
+          (byDate[v.asOfDate] as any)[field] = Number(v.reportedValue.raw);
+        }
+      }
+    }
+    return Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
+  };
+  return { annual: build("annual"), quarterly: build("quarterly") };
+}

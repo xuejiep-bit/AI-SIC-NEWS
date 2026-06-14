@@ -346,18 +346,18 @@ export default {
           if (strategy === "graham") {
             md = await generateGrahamReport(rawSym, market);
           } else {
-            // CAN SLIM 需要 RS 标杆池表现；同市场同一天只算一次，缓存到 reports 表
+            // CAN SLIM 需要 RS 标杆池表现（要拉几十只股票）。免费版单次请求 ≤50 子请求，
+            // 所以「算标杆池」与「出报告」分两次请求完成：标杆池缺失时本次只算并缓存，返回
+            // preparing 让前端自动重试；下次命中缓存后再出报告（每次都远低于 50 子请求）。
             const uniKey = `rsuniv:${market}:${day}`;
             const uniHit = await env.DB.prepare(`SELECT md FROM reports WHERE k = ?`).bind(uniKey).first<{ md: string }>();
-            let returns: Record<string, number>;
-            if (uniHit?.md) {
-              returns = JSON.parse(uniHit.md);
-            } else {
-              returns = await computeUniverseReturns(market);
+            if (!uniHit?.md) {
+              const returns = await computeUniverseReturns(market);
               await env.DB.prepare(`INSERT OR REPLACE INTO reports (k, md, created_at) VALUES (?, ?, ?)`)
                 .bind(uniKey, JSON.stringify(returns), Date.now()).run();
+              return json({ ok: false, preparing: true, msg: "RS 基准数据已就绪，正在生成报告…" });
             }
-            md = await generateCanslimReport(rawSym, market, returns);
+            md = await generateCanslimReport(rawSym, market, JSON.parse(uniHit.md));
           }
           await env.DB.prepare(`INSERT OR REPLACE INTO reports (k, md, created_at) VALUES (?, ?, ?)`)
             .bind(key, md, Date.now()).run();

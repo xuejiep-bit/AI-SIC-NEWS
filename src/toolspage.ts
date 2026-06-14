@@ -150,8 +150,15 @@ async function run(){
   try{
     const p = new URLSearchParams({ symbol: sym, strategy });
     if(market !== "auto") p.set("market", market);
-    const r = await fetch("/api/report?" + p.toString());
-    const d = await r.json();
+    let r = await fetch("/api/report?" + p.toString());
+    let d = await r.json();
+    // CAN SLIM 首次需先算 RS 基准池（单独一次请求），返回 preparing 时自动重试一次
+    if(d && d.preparing){
+      $("#status").textContent = "正在准备 RS 基准数据（首次稍慢）…";
+      await new Promise(res=>setTimeout(res, 1500));
+      r = await fetch("/api/report?" + p.toString());
+      d = await r.json();
+    }
     if(d.error){ $("#status").textContent = "❌ " + d.error; }
     else {
       lastMd = d.md; lastSym = d.symbol || sym;

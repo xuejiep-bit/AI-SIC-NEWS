@@ -21,3 +21,5 @@ jobs:
             curl -s -o /tmp/r -w "HTTP %{http_code} %{time_total}s\n" --max-time 150 "$BASE/api/report?$Q"
             python3 -c "import json;d=json.load(open('/tmp/r'));md=d.get('md','');print('ERR:',d.get('error')) if d.get('error') else print(chr(10).join([l[:115] for l in md.splitlines() if l.startswith('**日期**') or '关注' in l or '候选' in l or '观察名单' in l or '暂不考虑' in l or '空仓' in l or 'RS Rating |' in l or l.startswith('### ✅') or l.startswith('### ❌')][:26]))" 2>/dev/null || { echo "(not json, raw:)"; head -c 200 /tmp/r; echo; }
           done
+
+# rerun 1781419155

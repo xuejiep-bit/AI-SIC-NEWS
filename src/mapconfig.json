@@ -1,79 +1,200 @@
 {
-  "_说明": "产业链地图节点配置。直接编辑本文件即可更新 /map 页面：desc=环节说明（一两句通俗解释）；companies=代表性上市公司；note_links=关联笔记 [{\"title\":\"...\",\"url\":\"...\"}]；category_key 用于关联资讯分类统计，请勿改动。",
+  "_说明": "产业链地图节点配置。直接编辑本文件即可更新 /map 页面：desc=环节一句话说明；explainer=科普卡片，含 what(大白话这是什么)/position(在整条产业链里的位置)/watch(投资看点/瓶颈/风险)；companies=代表性上市公司；note_links=关联笔记 [{\"title\":\"...\",\"url\":\"...\"}]；category_key 用于关联资讯分类统计，请勿改动。",
+  "_产业链总览": "整条 AI 产业链可粗分三段：① 上游=造『算力』的硬件与基础设施（芯片、设备、数据中心、电力），相当于盖工厂、造发动机；② 中游=用算力『炼』出 AI 大脑（大模型）和配套软件；③ 下游=把 AI 大脑用起来、变成产品赚钱（编程、办公、自动驾驶、机器人等）。越往上游确定性越高（卖铲人），越往下游想象空间越大但胜负未定。",
   "nodes": [
     { "id": "ai_compute_chip", "layer": "upstream", "name": "AI算力芯片", "category_key": "ai_compute_chip",
       "desc": "训练和推理大模型用的 GPU / 加速器，本轮 AI 浪潮中最确定的「卖铲人」。",
+      "explainer": {
+        "what": "AI 之所以「聪明」，背后是天量的数学运算，而专门干这种活的超级计算芯片就是 AI 算力芯片（主要是 GPU）。可以把它想成 AI 工厂里的「发动机」——不管是训练模型，还是模型回答你问题（叫推理），归根结底都是这块芯片在算。",
+        "position": "整条产业链最上游、最核心的一环。它的产能和性能，直接决定了下游能造出多强的 AI。目前英伟达一家几乎垄断，是全行业公认的「卖铲人」（淘金热里卖铲子的，谁挖到金子它都赚）。",
+        "watch": "确定性最高、最直接吃到 AI 投入红利。要盯三件事：英伟达的霸主地位会不会被云厂自研芯片和 AMD 蚕食、先进芯片对华出口管制、以及下游需求会不会过热透支。"
+      },
       "companies": ["英伟达", "AMD", "博通", "Arm", "寒武纪", "海光信息"], "note_links": [] },
     { "id": "self_designed_chip", "layer": "upstream", "name": "云厂自研芯片", "category_key": "self_designed_chip",
       "desc": "云厂商为摆脱对英伟达的依赖而自研的 AI 芯片，如谷歌 TPU、亚马逊 Trainium、华为昇腾。",
+      "explainer": {
+        "what": "谷歌、亚马逊这些大云厂每年要向英伟达买几百亿美元的芯片，又贵又受制于人，于是干脆自己设计芯片（谷歌 TPU、亚马逊 Trainium、华为昇腾）。相当于大客户嫌供应商太强势，自己造发动机。",
+        "position": "和上面的 AI 算力芯片同处最上游，是英伟达的「内部竞争对手」。这些大厂自研得越成功，英伟达的议价权就越弱。",
+        "watch": "看这些自研芯片能从英伟达手里抢走多少份额。真正受益的往往不是云厂本身，而是帮它们做芯片设计和代工的博通、台积电等。"
+      },
       "companies": ["谷歌", "亚马逊", "微软", "Meta"], "note_links": [] },
     { "id": "foundry", "layer": "upstream", "name": "晶圆代工", "category_key": "foundry",
       "desc": "把芯片设计图变成实物的代工厂，先进制程产能是 AI 芯片的硬瓶颈。",
+      "explainer": {
+        "what": "英伟达这类芯片公司其实只画设计图，自己不开厂造，真正把图纸变成实物芯片的是代工厂。好比建筑师画图、施工队盖楼，台积电就是全球最厉害的「芯片施工队」。",
+        "position": "在芯片设计的下一道工序、所有 AI 芯片的必经关口。最先进的制程几乎只有台积电能造，是整条产业链的硬瓶颈。",
+        "watch": "先进制程（2nm/3nm）产能是稀缺资源，谁排得上队谁才有货。台积电是英伟达、苹果共同的命脉；中国被卡在先进制程之外是长期变量。"
+      },
       "companies": ["台积电", "中芯国际", "华虹半导体", "英特尔"], "note_links": [] },
     { "id": "semi_equipment", "layer": "upstream", "name": "半导体设备", "category_key": "semi_equipment",
       "desc": "造芯片用的光刻、刻蚀、沉积等设备，「卖铲人的卖铲人」。",
+      "explainer": {
+        "what": "代工厂要造芯片，得先花大价钱买一堆极其精密的机器——光刻机、刻蚀机、沉积设备等。卖这些机器的公司，就是「卖铲人的卖铲人」（给挖金子的人卖挖矿机）。",
+        "position": "比代工厂还上游。没有荷兰 ASML 的光刻机，台积电连先进芯片都造不出来，所以它卡在整条链的最源头。",
+        "watch": "ASML 的 EUV 光刻机全球独家、奇货可居。中国买不到高端设备，国产替代（北方华创、中微等）是一条确定的长期主线。"
+      },
       "companies": ["ASML", "应用材料", "泛林", "KLA", "北方华创", "中微公司"], "note_links": [] },
     { "id": "semi_material", "layer": "upstream", "name": "半导体材料", "category_key": "semi_material",
       "desc": "硅片、光刻胶、特种气体等芯片制造耗材，产能扩张时同步受益。",
+      "explainer": {
+        "what": "造芯片像做菜：除了机器（设备），还要原料和调料——硅片、光刻胶、特种气体等耗材。每造一片芯片就消耗一批，用完得不断买。",
+        "position": "上游的耗材环节，藏在设备和代工背后。芯片产能扩张时它跟着放量，但单价低、存在感弱。",
+        "watch": "不少高端材料被日本企业垄断，是另一个潜在卡脖子点。国产替代有空间，但股价弹性通常不如设备环节。"
+      },
       "companies": ["信越化学", "沪硅产业", "雅克科技"], "note_links": [] },
     { "id": "advanced_packaging", "layer": "upstream", "name": "先进封装(CoWoS)", "category_key": "advanced_packaging",
       "desc": "把 GPU 与 HBM 高密度封装在一起（CoWoS 等），算力芯片产能的另一大瓶颈。",
+      "explainer": {
+        "what": "一块 AI 芯片其实是把计算核心和好几块高速内存（HBM）紧紧拼装在一起的「组合体」。CoWoS 就是完成这道高难度拼装的先进封装工艺。",
+        "position": "紧挨着晶圆代工的后道工序，是 AI 芯片量产的另一大瓶颈——CoWoS 产能不够，英伟达就算芯片造好了也出不了货。",
+        "watch": "CoWoS 长期供不应求，被视为英伟达出货量的直接「闸门」。目前由台积电主导，相关封测厂跟着扩产受益。"
+      },
       "companies": ["台积电", "日月光", "长电科技", "通富微电"], "note_links": [] },
     { "id": "hbm_memory", "layer": "upstream", "name": "HBM/存储", "category_key": "hbm_memory",
       "desc": "AI 芯片旁的高带宽内存（HBM），需求爆发的存储新战场。",
+      "explainer": {
+        "what": "AI 芯片算得飞快，但得有足够快的「记忆体」把数据喂给它，否则发动机再强也空转。这种紧贴在 GPU 旁边的超高速内存就是 HBM。普通内存像远处的仓库，HBM 像贴身的高速货架。",
+        "position": "上游核心配套，和 GPU 捆绑一起出货，需求随 AI 爆发。是少数能和 GPU 一样紧俏的环节。",
+        "watch": "SK 海力士、美光、三星三家垄断，技术迭代到 HBM3E/HBM4。供给紧张时定价权很强，是存储行业里弹性最大的细分。"
+      },
       "companies": ["SK海力士", "美光", "三星电子", "澜起科技", "兆易创新"], "note_links": [] },
     { "id": "optical_interconnect", "layer": "upstream", "name": "光模块/光互联", "category_key": "optical_interconnect",
       "desc": "数据中心内 GPU 之间传数据的「高速公路」，800G/1.6T 光模块需求随算力暴增。",
+      "explainer": {
+        "what": "一个 AI 数据中心里有成千上万块 GPU，它们要协同算一个大模型，就得超高速互相传数据。光模块就是连接这些 GPU 的「光纤高速公路收费站」，负责把电信号转成光、再转回来。",
+        "position": "上游数据中心内部的「互联」环节。算力越大、GPU 堆得越多，需要的光模块就越多，是典型的「水涨船高」。",
+        "watch": "速率每隔一两年升级一次（400G→800G→1.6T），带来持续换新需求。中国厂商（中际旭创、新易盛）全球领先，是 A 股 AI 主线之一。"
+      },
       "companies": ["中际旭创", "新易盛", "天孚通信", "Coherent", "美满电子"], "note_links": [] },
     { "id": "server_datacenter", "layer": "upstream", "name": "服务器/数据中心", "category_key": "server_datacenter",
       "desc": "把芯片组装成 AI 服务器与数据中心机柜，吃「建设潮」红利的环节。",
+      "explainer": {
+        "what": "光有芯片不能用，得把芯片、内存、电源、网卡等组装成一台台 AI 服务器，再堆成机柜、塞满整栋数据中心大楼。这是「组装 + 盖楼」的环节。",
+        "position": "上游偏中后段，把上面各种零部件整合成可真正运行的算力基础设施，吃的是 AI「建设潮」的红利。",
+        "watch": "量大但毛利不高，更像「卖力气」。超微、工业富联、戴尔等组装龙头是代表；订单和资本开支是景气风向标。"
+      },
       "companies": ["超微电脑", "戴尔", "工业富联", "浪潮信息", "联想"], "note_links": [] },
     { "id": "cloud_compute", "layer": "upstream", "name": "云算力/租赁", "category_key": "cloud_compute",
       "desc": "出租算力的云厂商与 GPU 租赁商，AI 时代的「水电公司」。",
+      "explainer": {
+        "what": "绝大多数公司既买不起、也用不满成千上万块 GPU，于是云厂商把算力按时长出租，你用多少付多少。这就是 AI 时代的「水电公司」——不卖发电机，卖电。",
+        "position": "站在上游基础设施的「出口」，直接对接下游所有要用 AI 的人，是硬件和应用之间的枢纽。",
+        "watch": "亚马逊 / 微软 / 谷歌三巨头外加 CoreWeave 这类专做 GPU 租赁的新势力。它们每季的资本开支（capex）是观察整个 AI 景气度最重要的指标之一。"
+      },
       "companies": ["亚马逊", "微软", "谷歌", "甲骨文", "CoreWeave", "阿里巴巴"], "note_links": [] },
     { "id": "power_energy", "layer": "upstream", "name": "电力/能源/核电", "category_key": "power_energy",
       "desc": "数据中心耗电激增，带火电力设备、电网与核电（含小型核反应堆 SMR）。",
+      "explainer": {
+        "what": "数据中心是不折不扣的「电老虎」，AI 一火，电就不够用了。于是给数据中心供电的电力设备、电网、甚至核电都跟着被带火。一座 GW 级数据中心的耗电，能顶一座小城市。",
+        "position": "上游中的上游——给整条算力链供能。过去最不起眼，如今却成了越来越硬的天花板：没有电，再多芯片也开不了机。",
+        "watch": "美国数据中心电力紧张，重启核电站、押注小型核反应堆（SMR）成为新故事。电价上涨还会引发居民和监管反弹，是 AI 扩张的政治风险点。"
+      },
       "companies": ["Vertiv", "星座能源", "NextEra"], "note_links": [] },
     { "id": "cooling", "layer": "upstream", "name": "液冷散热", "category_key": "cooling",
       "desc": "高功率 AI 芯片的散热方案，机柜功率密度上升推动液冷渗透率快速提升。",
+      "explainer": {
+        "what": "AI 芯片功率极高、发热惊人，光靠风扇吹已经压不住了，要用液体直接贴着芯片把热带走。相当于给发高烧的服务器从「电风扇」升级到「水冷空调」。",
+        "position": "上游数据中心的配套环节。机柜里塞的芯片越密、功率越高，液冷就越是刚需。",
+        "watch": "液冷渗透率快速提升是一条确定性较高的趋势，英维克、Vertiv 等是主要受益者。"
+      },
       "companies": ["英维克", "Vertiv", "高澜股份"], "note_links": [] },
 
     { "id": "closed_model", "layer": "midstream", "name": "闭源大模型", "category_key": "closed_model",
       "desc": "OpenAI、Anthropic、谷歌等闭源前沿模型，靠订阅与 API 调用变现。",
+      "explainer": {
+        "what": "OpenAI、Anthropic、谷歌这些公司花几十上百亿美元，用海量算力「炼」出最强的 AI 大脑，但不公开内部构造，只让你通过订阅或按调用次数付费（API）来使用。相当于米其林餐厅：菜谱保密，只卖做好的菜。",
+        "position": "整条产业链的中游核心——把上游的算力转化成真正的「智能」。这是全链最烧钱、分歧也最大的环节。",
+        "watch": "靠持续烧钱换取领先，盈利能力一直被质疑。看点在于：谁的模型最强、安全与监管怎么管、以及能不能守住定价权（被开源模型逼降价就难受了）。"
+      },
       "companies": ["微软", "谷歌"], "note_links": [] },
     { "id": "open_model", "layer": "midstream", "name": "开源/国产模型", "category_key": "open_model",
       "desc": "开源权重与国产大模型阵营：Llama、DeepSeek、通义千问、Kimi 等。",
+      "explainer": {
+        "what": "和闭源相反，这些模型把「菜谱」（模型权重）公开，谁都能免费下载来自己部署、自己改。代表有 Meta 的 Llama，以及中国的 DeepSeek、通义千问、Kimi 等。",
+        "position": "中游，是闭源大模型的挑战者。它大幅降低了用上 AI 的门槛和成本，让中小公司和个人也能本地跑模型。",
+        "watch": "中国的开源模型性价比高、追赶速度快，是这条线的最大看点。一个反常识的逻辑：闭源厂商若把限制收得太紧，反而会把客户推向开源。"
+      },
       "companies": ["Meta", "阿里巴巴", "科大讯飞", "商汤"], "note_links": [] },
     { "id": "data_annotation", "layer": "midstream", "name": "数据/标注", "category_key": "data_annotation",
       "desc": "模型训练所需数据的采集、清洗、标注与合成。",
+      "explainer": {
+        "what": "AI 要变聪明，得先有人把海量数据收集好、清洗干净、打上标签喂给它，就像给学生备好教材和习题答案。这就是数据与标注环节。",
+        "position": "中游的「原料供应」环节，服务于模型训练。模型再强，也得先吃进足够好的数据。",
+        "watch": "互联网上的高质量数据快被用完了，越来越稀缺；用 AI 自己生成训练数据（合成数据）是新方向。"
+      },
       "companies": ["海天瑞声"], "note_links": [] },
     { "id": "framework_tooling", "layer": "midstream", "name": "框架/工具链", "category_key": "framework_tooling",
       "desc": "训练/推理框架与开发工具链：PyTorch、CUDA、向量数据库、MLOps 等。",
+      "explainer": {
+        "what": "开发者训练、部署 AI 模型时要用的各种软件工具和「脚手架」，比如 PyTorch、英伟达的 CUDA、向量数据库等。相当于盖楼离不开的脚手架和工具箱。",
+        "position": "中游的底层软件层，把硬件（芯片）和上层模型连起来，是个隐形但关键的枢纽。",
+        "watch": "英伟达的 CUDA 软件生态是它真正的隐形护城河——大家习惯了就离不开。向量数据库、推理框架是新兴的创业机会。"
+      },
       "companies": ["英伟达", "微软"], "note_links": [] },
 
     { "id": "ai_agent", "layer": "downstream", "name": "AI Agent/智能体", "category_key": "ai_agent",
       "desc": "能自主完成多步任务的智能体，被视为大模型应用的下一站。",
+      "explainer": {
+        "what": "不只是聊天一问一答，而是能自己把任务拆成多步、调用各种工具、一步步把活儿干完的「AI 员工」。比如你说一句『帮我订下周去上海最便宜的机票并发我邮箱』，它能全程自动搞定。",
+        "position": "下游应用层，被普遍看作大模型落地变现的下一个大风口。",
+        "watch": "想象空间巨大，但还在早期。核心难点是『能不能稳定、可靠地把复杂任务做对』，出错率高就没人敢真正托付。"
+      },
       "companies": ["微软", "Salesforce"], "note_links": [] },
     { "id": "ai_coding", "layer": "downstream", "name": "AI编程", "category_key": "ai_coding",
       "desc": "AI 编程助手（Copilot、Cursor、Claude Code 等），目前商业化最成功的 AI 应用之一。",
+      "explainer": {
+        "what": "帮程序员、甚至不会写代码的人来写代码的 AI 工具（GitHub Copilot、Cursor、Claude Code 等）。你用大白话描述需求，它直接生成可运行的程序。",
+        "position": "下游应用层里目前最赚钱、落地最成功的方向之一，已经实打实创造收入并改变了软件行业的工作方式。",
+        "watch": "它在直接冲击传统软件公司（市场称之为 SaaSpocalypse，软件股一夜蒸发上千亿市值）。Anthropic 等正是靠这块业务实现盈利。"
+      },
       "companies": ["微软"], "note_links": [] },
     { "id": "enterprise_saas", "layer": "downstream", "name": "企业软件/SaaS", "category_key": "enterprise_saas",
       "desc": "把 AI 能力嵌入企业软件，按席位或用量收费。",
+      "explainer": {
+        "what": "把 AI 能力塞进企业每天都在用的办公、客服、CRM（客户管理）、ERP 等软件里，按用户人头或用量收费。让原本的软件变得更聪明、更自动。",
+        "position": "下游应用层，主要面向企业客户变现，是 AI 商业化最直接的战场之一。",
+        "watch": "它既是 AI 的受益者，也可能被 AI 反噬——当 AI 能直接干掉某些软件岗位时，按『席位』收费的老模式会受冲击。Palantir 是典型代表。"
+      },
       "companies": ["Palantir", "Salesforce", "ServiceNow", "金山办公"], "note_links": [] },
     { "id": "consumer_app", "layer": "downstream", "name": "To C 应用", "category_key": "consumer_app",
       "desc": "面向个人用户的聊天、搜索、图像/视频生成等 AI 应用。",
+      "explainer": {
+        "what": "普通人直接上手用的 AI 产品——聊天助手（ChatGPT、豆包）、AI 搜索、AI 画图和 AI 视频生成等。",
+        "position": "下游应用层，面向个人消费者（To C），是大众感知 AI 最直接的入口。",
+        "watch": "用户和流量很大，但变现难、容易陷入价格战和同质化内卷。谁能做出真正的『超级应用』是最大悬念。"
+      },
       "companies": ["腾讯", "快手", "美团"], "note_links": [] },
     { "id": "autonomous_driving", "layer": "downstream", "name": "自动驾驶", "category_key": "autonomous_driving",
       "desc": "AI 在汽车上的落地：Robotaxi 与智能驾驶方案。",
+      "explainer": {
+        "what": "让 AI 来开车——从帮你打辅助的智能驾驶，到完全没有司机的无人出租车（Robotaxi）。",
+        "position": "下游应用，是 AI 在汽车这个大行业里的落地，属于『物理世界』的 AI。",
+        "watch": "特斯拉 FSD、谷歌 Waymo 领跑。关键看商业化拐点和单公里成本能不能降到比人类司机更便宜。"
+      },
       "companies": ["特斯拉", "小鹏汽车", "地平线"], "note_links": [] },
     { "id": "robotics", "layer": "downstream", "name": "人形机器人/具身", "category_key": "robotics",
       "desc": "人形机器人与具身智能，AI 从数字世界走向物理世界。",
+      "explainer": {
+        "what": "给 AI 装上一副身体，让它能在真实世界里干体力活，比如人形机器人。AI 由此从屏幕里走进物理世界，这叫『具身智能』。",
+        "position": "下游应用，是最具长期想象力的方向之一，被看作 AI 的『终极形态』之一。",
+        "watch": "特斯拉 Optimus、各家创业公司纷纷入局。但离大规模量产、真正能干活还很早，目前主题炒作的成分偏多。"
+      },
       "companies": ["特斯拉", "优必选"], "note_links": [] },
     { "id": "ai_hardware", "layer": "downstream", "name": "AI硬件", "category_key": "ai_hardware",
       "desc": "AI 手机 / PC / 眼镜等端侧硬件及其供应链。",
+      "explainer": {
+        "what": "把 AI 直接装进手机、电脑、眼镜等随身设备里（叫『端侧 AI』，不用每次都连云端），让设备本身就变聪明。",
+        "position": "下游应用，是 AI 与消费电子的结合点，也是把 AI 普及到每个人口袋里的载体。",
+        "watch": "AI 眼镜、AI PC 等新形态在冒头，会带动立讯精密、舜宇光学这些消费电子供应链。看点是会不会出现下一个『iPhone 时刻』。"
+      },
       "companies": ["苹果", "小米", "立讯精密", "舜宇光学", "比亚迪电子"], "note_links": [] },
     { "id": "vertical_industry", "layer": "downstream", "name": "垂直行业", "category_key": "vertical_industry",
       "desc": "医疗、金融、制造等垂直行业的 AI 解决方案与行业大模型。",
+      "explainer": {
+        "what": "针对医疗、金融、制造等某个具体行业，量身定制的 AI 方案和『行业大模型』。通用模型懂得广，行业模型则在某个专业领域钻得更深。",
+        "position": "下游应用，代表 AI 深入到各传统行业的『最后一公里』。",
+        "watch": "落地难度高（行业数据封闭、要求严谨），但一旦做成天花板也高。医疗 AI、AI 制药、AI for Science 是当前热点。"
+      },
       "companies": ["科大讯飞", "Palantir"], "note_links": [] }
   ]
 }

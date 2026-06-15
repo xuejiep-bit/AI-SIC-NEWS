@@ -17,7 +17,9 @@ export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
   header { padding:18px 24px; border-bottom:1px solid var(--line); background:var(--panel);
     display:flex; align-items:center; gap:14px; }
   header .logo { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--acc),var(--acc2));
-    color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; }
+    color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center;
+    text-decoration:none; cursor:pointer; }
+  header .logo:hover { filter:brightness(1.12); }
   header h1 { font-size:17px; margin:0; }
   header a.back { margin-left:auto; color:var(--acc); text-decoration:none; font-size:13px; }
   .wrap { max-width:880px; margin:0 auto; padding:22px 20px 80px; }
@@ -53,7 +55,7 @@ export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <div class="logo">AI</div>
+  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
   <h1>📊 投资分析工具</h1>
   <a class="back" href="/">← 返回资讯首页</a>
 </header>

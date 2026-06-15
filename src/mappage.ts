@@ -21,7 +21,9 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
   header { padding:18px 24px; border-bottom:1px solid var(--line); background:var(--panel);
     display:flex; align-items:center; gap:14px; }
   header .logo { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--acc),var(--down));
-    color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; }
+    color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center;
+    text-decoration:none; cursor:pointer; }
+  header .logo:hover { filter:brightness(1.12); }
   header h1 { font-size:17px; margin:0; }
   header a.back { margin-left:auto; color:var(--acc); text-decoration:none; font-size:13px; }
   header a.back:hover { text-decoration:underline; }
@@ -43,6 +45,14 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
   #detail h3 { margin:0 0 4px; font-size:17px; display:flex; align-items:center; gap:10px; }
   #detail h3 .lay { font-size:11px; font-weight:400; padding:2px 9px; border-radius:20px; color:#fff; }
   #detail .desc { color:var(--txt); font-size:13.5px; line-height:1.7; margin:10px 0 0; }
+  /* 科普卡片：给小白看的通俗说明 */
+  #detail .explain { margin-top:14px; border:1px solid rgba(245,179,1,.35); border-radius:12px;
+    background:linear-gradient(180deg,rgba(245,179,1,.08),rgba(245,179,1,.02)); padding:14px 16px; }
+  #detail .explain .etitle { font-size:12.5px; font-weight:700; color:var(--invest); margin-bottom:10px;
+    display:flex; align-items:center; gap:6px; }
+  #detail .explain .erow { margin:9px 0; line-height:1.75; font-size:13.5px; }
+  #detail .explain .erow .lab { display:inline-block; font-weight:700; color:var(--txt);
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:1px 8px; margin-right:7px; font-size:12px; }
   #detail .sec { margin-top:16px; }
   #detail .sec h4 { margin:0 0 8px; font-size:12px; color:var(--dim); letter-spacing:.05em; }
   .chips { display:flex; flex-wrap:wrap; gap:7px; }
@@ -57,7 +67,7 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <div class="logo">AI</div>
+  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
   <h1>🗺️ AI 产业链地图</h1>
   <a class="back" href="/">← 返回资讯首页</a>
 </header>
@@ -113,9 +123,18 @@ function renderDetail(){
   const notes = links.length
     ? links.map(x=>'<a href="'+x.url+'">📝 '+esc(x.title)+'</a>').join("")
     : '<span class="todo">待写</span>';
+  // 科普卡片（给小白看的通俗说明）：what=这是什么 / position=在产业链的位置 / watch=投资看点
+  const ex = n.explainer;
+  const explain = ex ? '<div class="explain">'+
+      '<div class="etitle">📖 一分钟科普（看完就懂这是干嘛的）</div>'+
+      (ex.what ? '<div class="erow"><span class="lab">这是什么</span>'+esc(ex.what)+'</div>' : '')+
+      (ex.position ? '<div class="erow"><span class="lab">在产业链的位置</span>'+esc(ex.position)+'</div>' : '')+
+      (ex.watch ? '<div class="erow"><span class="lab">投资看点</span>'+esc(ex.watch)+'</div>' : '')+
+    '</div>' : '';
   box.innerHTML =
     '<h3>'+esc(n.name)+'<span class="lay" style="background:'+L.color+'">'+esc(L.name)+'</span></h3>'+
     '<div class="desc">'+esc(n.desc||"")+'</div>'+
+    explain+
     '<div class="sec"><h4>相关公司</h4>'+cos+'</div>'+
     '<div class="sec"><h4>最新动态</h4>'+
       '<a class="newslink" href="/?segment='+encodeURIComponent(n.category_key)+'">'+

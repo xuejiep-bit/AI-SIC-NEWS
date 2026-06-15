@@ -17,7 +17,9 @@ export const NOTE_HTML = /* html */ `<!DOCTYPE html>
   header { padding:18px 24px; border-bottom:1px solid var(--line); background:var(--panel);
     display:flex; align-items:center; gap:14px; }
   header .logo { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--acc),var(--acc2));
-    color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; }
+    color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center;
+    text-decoration:none; cursor:pointer; }
+  header .logo:hover { filter:brightness(1.12); }
   header h1 { font-size:16px; margin:0; }
   header a.back { margin-left:auto; color:var(--acc); text-decoration:none; font-size:13px; }
   .wrap { max-width:760px; margin:0 auto; padding:30px 20px 70px; }
@@ -52,7 +54,7 @@ export const NOTE_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <div class="logo">AI</div>
+  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
   <h1>🎬 投资视频解读</h1>
   <a class="back" href="/?notes=1">← 全部笔记</a>
 </header>

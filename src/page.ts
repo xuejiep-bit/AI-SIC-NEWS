@@ -30,8 +30,9 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   h1 { font-size:18px; margin:0; font-weight:700; }
   .sub { color:var(--dim); font-size:13px; }
   .logo { width:38px; height:38px; border-radius:10px; flex:none; letter-spacing:.5px;
-    background:linear-gradient(135deg,var(--acc),var(--acc2)); color:#fff;
+    background:linear-gradient(135deg,var(--acc),var(--acc2)); color:#fff; text-decoration:none; cursor:pointer;
     font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; }
+  .logo:hover { filter:brightness(1.12); }
   .spacer { flex:1; }
   .btn { background:var(--panel2); color:var(--txt); border:1px solid var(--line);
     border-radius:8px; padding:7px 12px; cursor:pointer; font-size:13px; }
@@ -137,7 +138,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <body>
 <header>
   <button class="btn" id="navToggle" title="折叠 / 展开侧栏" aria-label="折叠侧栏">«</button>
-  <div class="logo" aria-hidden="true">AI</div>
+  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
   <div>
     <h1 data-i18n="title">AI 链</h1>
   </div>

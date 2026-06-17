@@ -1,6 +1,7 @@
 import { ALL_FEEDS } from "./feeds";
 import { parseFeed } from "./rss";
 import { classify } from "./classify";
+import { scoreValue } from "./picks";
 import { aiClassify, type AiInput } from "./ai";
 import { investClause } from "./invest";
 import { LAYERS, SEGMENTS } from "./taxonomy";
@@ -23,6 +24,7 @@ export interface Env {
   AI_MODEL?: string;        // 默认 claude-opus-4-8
   RETENTION_DAYS?: string;  // 保留天数，默认 30；<=0 表示不清理
   EXPORT_TOKEN?: string;    // 订阅邮箱 CSV 导出接口的访问密钥；未设置时导出功能关闭
+  PICKS_THRESHOLD?: string; // 「今日精选」默认分数阈值，默认 "7"（前端可用 ?min= 覆盖试调）
 }
 
 // 基于链接的稳定 id（FNV-1a 32bit），用于去重
@@ -65,6 +67,8 @@ interface Row {
   summary: string; source: string; lang: string; layer: string; segment: string | null;
   score: number; publishedAt: number; videoLayer: string | null;
   region: string;          // 'cn'(国内) | 'global'(国际)，资讯的地区属性标签
+  valueScore: number | null;   // 今日精选 1-10 价值分（视频类为 null）
+  valueReason: string | null;  // 一句话理由
 }
 
 // ── 抓取 + 分类 + 入库 ────────────────────────────────
@@ -106,6 +110,7 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
         score: 0, publishedAt: it.publishedAt ?? now,
         videoLayer: feed.kind === "video" || feed.kind === "video_invest" ? feed.kind : null,
         region: feed.lang === "zh" ? "cn" : "global", // 地区标签：中文源=国内，其余=国际
+        valueScore: null, valueReason: null,
       });
     }
   }
@@ -122,10 +127,13 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   const newItems = [...candidates.values()].filter((r) => !existing.has(r.id));
 
   // 视频按频道类型归入 video / video_invest，不进产业链；其余走关键词分类（基线 + AI 失败时的回退）
+  // 同时给非视频资讯做「今日精选」价值打分（纯关键词/规则，零成本）。
   for (const r of newItems) {
     if (r.videoLayer) { r.layer = r.videoLayer; r.segment = null; continue; }
     const c = classify(r.title, r.summary);
     r.layer = c.layer; r.segment = c.segment; r.score = c.score;
+    const v = scoreValue(r.title, r.summary);
+    r.valueScore = v.score; r.valueReason = v.reason;
   }
 
   // 可选：Claude 语义分类 + 中文标题翻译，覆盖关键词结果（仅资讯，不含视频）
@@ -151,11 +159,11 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   // 入库：id 主键 + title_key 唯一，OR IGNORE 同时实现链接去重与跨源标题去重
   const stmt = env.DB.prepare(
     `INSERT OR IGNORE INTO articles
-       (id, title, title_zh, title_key, link, summary, source, lang, layer, segment, score, published_at, fetched_at, region)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, title, title_zh, title_key, link, summary, source, lang, layer, segment, score, published_at, fetched_at, region, value_score, value_reason)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const batch = newItems.map((a) =>
-    stmt.bind(a.id, a.title, a.titleZh, a.titleKey, a.link, a.summary, a.source, a.lang, a.layer, a.segment, a.score, a.publishedAt, now, a.region),
+    stmt.bind(a.id, a.title, a.titleZh, a.titleKey, a.link, a.summary, a.source, a.lang, a.layer, a.segment, a.score, a.publishedAt, now, a.region, a.valueScore, a.valueReason),
   );
   let upserted = 0;
   for (let i = 0; i < batch.length; i += 50) {
@@ -223,6 +231,55 @@ async function queryNews(env: Env, url: URL) {
 
   const { results } = await env.DB.prepare(sql).bind(...binds).all();
   return results;
+}
+
+// 今日精选：价值分 >= 阈值、近 N 小时内的资讯，按分数降序。
+// ?min= 覆盖默认阈值（前端可滑动试调）；?hours= 时间窗（默认 48）；?region= 可叠加地区筛选。
+async function queryPicks(env: Env, url: URL) {
+  const def = parseInt(env.PICKS_THRESHOLD || "7", 10) || 7;
+  let min = parseInt(url.searchParams.get("min") || String(def), 10);
+  if (!Number.isFinite(min)) min = def;
+  if (min < 1) min = 1;
+  if (min > 10) min = 10;
+  const hours = Math.min(Math.max(parseInt(url.searchParams.get("hours") || "48", 10) || 48, 6), 168);
+  const since = Date.now() - hours * 3600 * 1000;
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "60", 10) || 60, 120);
+
+  const where: string[] = [NOT_VIDEO, "value_score >= ?", "published_at >= ?"];
+  const binds: unknown[] = [min, since];
+  const region = url.searchParams.get("region");
+  if (region === "cn" || region === "global") { where.push("region = ?"); binds.push(region); }
+  binds.push(limit);
+
+  const { results } = await env.DB.prepare(
+    `SELECT id, title, title_zh, summary_zh, region, link, summary, source, lang, layer, segment,
+            published_at, value_score, value_reason
+     FROM articles WHERE ${where.join(" AND ")}
+     ORDER BY value_score DESC, published_at DESC LIMIT ?`,
+  ).bind(...binds).all();
+  return { threshold: min, hours, items: results };
+}
+
+// 给历史文章补打价值分（纯关键词，零成本）。每次处理一批 value_score 为 NULL 的非视频资讯，
+// 由每小时 cron 调用，几小时内即可把存量全部补齐；也可通过 /api/refresh 后自然累积。
+async function backfillValueScores(env: Env, limit = 1500): Promise<number> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, title, summary FROM articles
+     WHERE value_score IS NULL AND ${NOT_VIDEO}
+     ORDER BY published_at DESC LIMIT ?`,
+  ).bind(limit).all<{ id: string; title: string; summary: string | null }>();
+  if (!results.length) return 0;
+  const upd = env.DB.prepare(`UPDATE articles SET value_score = ?, value_reason = ? WHERE id = ?`);
+  const batch = results.map((r) => {
+    const v = scoreValue(r.title || "", r.summary || "");
+    return upd.bind(v.score, v.reason, r.id);
+  });
+  let n = 0;
+  for (let i = 0; i < batch.length; i += 100) {
+    const res = await env.DB.batch(batch.slice(i, i + 100));
+    n += res.reduce((a, r) => a + (r.meta?.changes ?? 0), 0);
+  }
+  return n;
 }
 
 async function queryStats(env: Env, url: URL) {
@@ -419,6 +476,7 @@ export default {
         });
       }
       if (path === "/api/news") return json(await queryNews(env, url));
+      if (path === "/api/picks") return json(await queryPicks(env, url));
       if (path === "/api/stats") return json(await queryStats(env, url));
       if (path === "/api/refresh") {
         const token = env.REFRESH_TOKEN || "";
@@ -436,14 +494,32 @@ export default {
         }
         return json({ ok: true, ...(await reclassifyAll(env)) });
       }
+      if (path === "/api/rescore-value") {
+        // 手动补打/重打价值分（改了 picks.ts 关键词后用）。默认只补 value_score 为空的；?all=1 全量重打。
+        const token = env.REFRESH_TOKEN || "";
+        if (token) {
+          const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
+          if (provided !== token) return json({ error: "unauthorized" }, 401);
+        }
+        if (url.searchParams.get("all") === "1") {
+          await env.DB.prepare(`UPDATE articles SET value_score = NULL WHERE ${NOT_VIDEO}`).run();
+        }
+        const n = await backfillValueScores(env, 5000);
+        return json({ ok: true, scored: n });
+      }
       return json({ error: "not found" }, 404);
     } catch (err) {
       return json({ error: String(err) }, 500);
     }
   },
 
-  // Cron 定时触发：抓取并入库
+  // Cron 定时触发：抓取并入库，并给存量文章补打价值分（零成本，几小时内补齐）
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(ingest(env).then((s) => console.log("ingest", JSON.stringify(s))));
+    ctx.waitUntil(
+      ingest(env)
+        .then((s) => console.log("ingest", JSON.stringify(s)))
+        .then(() => backfillValueScores(env))
+        .then((n) => { if (n) console.log("backfill value_score", n); }),
+    );
   },
 };

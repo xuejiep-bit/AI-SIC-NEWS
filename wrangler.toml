@@ -38,6 +38,10 @@ AI_MODEL = "claude-opus-4-8"
 # 数据保留天数；超过则在每次抓取后清理。设为 "0" 表示永不清理。
 RETENTION_DAYS = "30"
 
+# 「今日精选」默认分数阈值（1-10）。只保留价值分 ≥ 此值的资讯进入精选。
+# 前端可用 ?min= 实时覆盖试调，找到合适的线后再改这里固化默认值。
+PICKS_THRESHOLD = "7"
+
 # ANTHROPIC_API_KEY 不要写在这里——用机密方式设置：
 #   npx wrangler secret put ANTHROPIC_API_KEY
 

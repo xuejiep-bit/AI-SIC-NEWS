@@ -79,6 +79,21 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .tags .srch:hover { text-decoration:underline; }
   .chip { padding:2px 8px; border-radius:20px; font-weight:600; color:#fff; }
   .empty { color:var(--dim); text-align:center; padding:60px 0; }
+  /* 今日精选 */
+  .pickbar { grid-column:1/-1; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:4px; }
+  .pickbar .pl { font-size:13px; font-weight:700; }
+  .pickbar .ph { color:var(--dim); font-size:12px; margin-left:6px; }
+  .pbtn { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:8px;
+    padding:5px 12px; cursor:pointer; font-size:13px; }
+  .pbtn.on { background:var(--invest); border-color:var(--invest); color:#1a1a1a; font-weight:700; }
+  .card.pick .pickhead { display:flex; align-items:flex-start; gap:10px; }
+  .pickscore { flex:none; min-width:30px; height:30px; padding:0 6px; border-radius:8px; font-weight:800; font-size:15px;
+    display:flex; align-items:center; justify-content:center; color:#1a1a1a; background:var(--dim); }
+  .pickscore.hi { background:var(--acc2,#36d399); }
+  .pickscore.mid { background:var(--invest); }
+  .pickscore.lo { background:#6b7280; color:#fff; }
+  .pickreason { color:var(--invest); font-size:12.5px; line-height:1.6; margin:6px 0 2px; }
   /* ── 首页主推区：深度笔记大卡片 ── */
   #hero { margin-bottom:16px; }
   #hero .hh { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
@@ -281,7 +296,8 @@ const MKT = [
 
 const lang = "zh";  // 全站统一中文（语言切换已移除）
 // sel.video：false 或具体视频 layer（"video" = AI 视频，"video_invest" = 投资视频）
-let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false };
+let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false, picks:false };
+let picksMin = null; // 今日精选阈值（null=用后端默认）
 let regionFilter = "all"; // 资讯流地区筛选：all | cn(国内) | global(国际)，与产业链分类叠加
 let noteAnchor = "";      // ?note=<id> 直达某篇笔记（地图页「我的笔记」链接用），定位后清空
 let counts = {};
@@ -339,6 +355,8 @@ const BLOGS = {
 function renderNav(){
   const nav = $("#nav");
   let html = '<div class="group">';
+  html += '<div class="navitem '+(sel.picks?'on':'')+'" data-picks="1">'+
+    '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>⭐ 今日精选</span></span></div>';
   html += navItem("all","all",t("all"), totalCount(), null, false);
   const invLabel = lang==="zh" ? "💰 投资/融资" : "💰 Investment";
   html += '<div class="navitem '+(sel.invest?'on':'')+'" data-invest="1">'+
@@ -378,10 +396,11 @@ function renderNav(){
   nav.innerHTML = html;
   nav.querySelectorAll(".navitem").forEach(el=>{
     el.onclick = ()=>{
-      if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true, video:false, notes:false}; }
-      else if(el.dataset.video){ sel={layer:"all", segment:"all", invest:false, video:el.dataset.video, notes:false}; }
-      else if(el.dataset.notes){ sel={layer:"all", segment:"all", invest:false, video:false, notes:true}; }
-      else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false, video:false, notes:false}; }
+      if(el.dataset.picks){ sel={layer:"all", segment:"all", invest:false, video:false, notes:false, picks:true}; }
+      else if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true, video:false, notes:false, picks:false}; }
+      else if(el.dataset.video){ sel={layer:"all", segment:"all", invest:false, video:el.dataset.video, notes:false, picks:false}; }
+      else if(el.dataset.notes){ sel={layer:"all", segment:"all", invest:false, video:false, notes:true, picks:false}; }
+      else { sel={layer:el.dataset.layer, segment:el.dataset.segment, invest:false, video:false, notes:false, picks:false}; }
       renderNav(); load();
     };
   });
@@ -397,7 +416,7 @@ function layerCount(layer){ return Object.entries(counts).filter(([k])=>k.starts
 
 // ── 首页主推区 + 地图横幅（仅默认首页视图显示，筛选/搜索/其它视图时收起）──
 function isHome(){
-  return view==="news" && !sel.invest && !sel.video && !sel.notes
+  return view==="news" && !sel.invest && !sel.video && !sel.notes && !sel.picks
     && sel.layer==="all" && sel.segment==="all" && !$("#q").value.trim();
 }
 function renderHome(){
@@ -418,7 +437,7 @@ function renderHero(){
   }).join("")+'</div>';
   $("#hero").innerHTML = html;
   // 「查看全部笔记」进入站内笔记列表；单张卡片进入独立笔记页（上面的 <a>）
-  $("#allNotes").onclick = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true}; renderNav(); load(); };
+  $("#allNotes").onclick = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true,picks:false}; renderNav(); load(); };
 }
 // 地区筛选按钮（全部 / 国内 / 国际）
 function renderRegionSeg(){
@@ -445,6 +464,7 @@ async function loadStats(){
 
 async function load(){
   renderHome(); // 同步主推区/地图横幅的显隐
+  if(sel.picks){ renderPicks(); return; }
   if(sel.notes){ renderNotes(); return; }
   $("#status").textContent = t("loading");
   const p = new URLSearchParams();
@@ -512,6 +532,53 @@ function renderCards(items){
   }).join("");
 }
 function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ── 今日精选（按价值分阈值筛选；纯免费关键词打分，无需 AI）──
+async function renderPicks(){
+  renderHome();
+  const box = $("#cards"); box.classList.remove("notes");
+  $("#empty").style.display = "none";
+  $("#status").textContent = t("loading");
+  const p = new URLSearchParams();
+  if(picksMin!=null) p.set("min", String(picksMin));
+  if(regionFilter!=="all") p.set("region", regionFilter);
+  try{
+    const r = await fetch("/api/picks?"+p.toString());
+    const d = await r.json();
+    const items = (d && d.items) || [];
+    const thr = (d && d.threshold) || 7; picksMin = thr;
+    $("#status").textContent = "";
+    $("#count").textContent = lang==="zh" ? (items.length+" 条") : (items.length+" picks");
+    // 阈值选择条：滑动 5-9 实时试调
+    const opts = [5,6,7,8,9].map(n=>
+      '<button class="pbtn'+(thr===n?' on':'')+'" data-min="'+n+'">≥'+n+'</button>').join("");
+    const bar = '<div class="pickbar"><span class="pl">价值阈值</span>'+opts+
+      '<span class="ph">分越高=越可能揭示供需/技术拐点或重大事件；近 48 小时内</span></div>';
+    const cards = items.map(a=>{
+      const seg = SEGLABEL[a.segment];
+      const segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : "行业动态";
+      const color = COLOR[a.layer]||"var(--other)";
+      const title = a.title_zh || a.title;
+      const sc = a.value_score||0;
+      const scClass = sc>=8 ? "hi" : (sc>=7 ? "mid" : "lo");
+      const regionTag = a.region==="cn" ? "国内" : (a.region==="global" ? "国际" : "");
+      return '<div class="card pick">'+
+        '<div class="pickhead"><span class="pickscore '+scClass+'">'+sc+'</span>'+
+          '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a></div>'+
+        (a.value_reason?'<div class="pickreason">🎯 '+esc(a.value_reason)+'</div>':'')+
+        '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+
+        '<span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span>'+
+        (regionTag?'<span>·</span><span>'+regionTag+'</span>':'')+
+        '<a class="srch" href="https://www.bing.com/search?q='+encodeURIComponent(title)+'" target="_blank" rel="noopener" title="原文打不开？用标题搜索这条新闻">🔍 搜标题</a>'+
+        '</div></div>';
+    }).join("");
+    box.innerHTML = bar + (items.length? cards :
+      '<div class="empty">这个阈值下近 48 小时暂无精选。试试调低阈值，或等下一次抓取累积更多资讯。</div>');
+    box.querySelectorAll(".pbtn").forEach(b=>{
+      b.onclick = ()=>{ picksMin = parseInt(b.dataset.min,10); renderPicks(); };
+    });
+  }catch(e){ $("#status").textContent = String(e); }
+}
 
 // ── 投资视频解读 ─────────────────────────────────────
 async function loadNotes(){

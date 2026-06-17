@@ -58,12 +58,16 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
     padding:6px 10px; border-radius:7px; font-size:12.5px; color:var(--txt); text-decoration:none; }
   .bloglink:hover { background:var(--panel2); }
   .bloglink .ext { color:var(--dim); font-size:11px; flex:none; }
-  /* 分组折叠：每个层级/博客分组可点三角折叠 */
-  .caret { display:inline-block; width:13px; text-align:center; font-size:10px; color:var(--dim);
-    cursor:pointer; user-select:none; flex:none; }
-  .caret:hover { color:var(--txt); }
-  .navhdr.grphdr { display:flex; align-items:center; gap:4px; cursor:pointer; }
-  .navhdr.grphdr:hover { color:var(--txt); }
+  /* 分组折叠：整行可点，三角更醒目 */
+  .caret { display:inline-block; width:16px; height:16px; line-height:16px; text-align:center; font-size:11px;
+    color:var(--acc); user-select:none; flex:none; }
+  .grphdr { display:flex; align-items:center; justify-content:space-between; gap:4px; cursor:pointer;
+    padding:6px 10px; border-radius:7px; }
+  .grphdr:hover { background:var(--panel2); }
+  .grphdr .label { display:flex; align-items:center; gap:7px; overflow:hidden; }
+  .grphdr .n { color:var(--dim); font-size:11px; }
+  .layerhdr { font-size:13px; color:var(--txt); font-weight:600; }
+  .blogshdr { font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--dim); }
   main { flex:1; padding:18px 24px; overflow:auto; max-height:calc(100vh - 62px); }
   .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
   input[type=search]{ background:var(--panel); border:1px solid var(--line); color:var(--txt);
@@ -398,14 +402,13 @@ function renderNav(){
   }
   html += '</div>';
   for(const L of TAX){
-    // 若当前正筛选本层级的某细分，则强制展开，方便看到选中项
-    const forceOpen = !sel.invest && !sel.video && !sel.notes && sel.layer===L.key;
+    // 仅当深链选中本层级的「某个细分」时强制展开，方便看到选中项；点整层标题只负责折叠/展开
+    const forceOpen = !sel.invest && !sel.video && !sel.notes && sel.layer===L.key && sel.segment!=="all";
     const collapsed = collapsedGroups.has(L.key) && !forceOpen;
-    const headerOn = forceOpen && sel.segment==="all";
     html += '<div class="group">';
-    // 层级标题：左侧三角折叠子项，点标题文字本身仍按整层筛选
-    html += '<div class="navitem '+(headerOn?'on':'')+'" data-layer="'+L.key+'" data-segment="all">'+
-      '<span class="label"><span class="caret" data-grp="'+L.key+'">'+(collapsed?"▸":"▾")+'</span>'+
+    // 层级标题：整行点击折叠/展开（标准手风琴交互）
+    html += '<div class="grphdr layerhdr" data-grp="'+L.key+'">'+
+      '<span class="label"><span class="caret">'+(collapsed?"▸":"▾")+'</span>'+
       '<span class="dot" style="background:'+L.color+'"></span><span>'+(lang==="zh"?L.zh:L.en)+'</span></span>'+
       '<span class="n">'+layerCount(L.key)+'</span></div>';
     if(!collapsed){
@@ -416,10 +419,11 @@ function renderNav(){
     }
     html += '</div>';
   }
-  // 官方博客（前沿大模型实验室一手信源，外链新标签页打开），可折叠
+  // 官方博客（前沿大模型实验室一手信源，外链新标签页打开），整行可折叠
   const blogsCollapsed = collapsedGroups.has("blogs");
   html += '<div class="group">';
-  html += '<div class="navhdr grphdr" data-grp="blogs"><span class="caret" data-grp="blogs">'+(blogsCollapsed?"▸":"▾")+'</span><span>🔗 官方博客</span></div>';
+  html += '<div class="grphdr blogshdr" data-grp="blogs">'+
+    '<span class="label"><span class="caret">'+(blogsCollapsed?"▸":"▾")+'</span><span>🔗 官方博客</span></span></div>';
   if(!blogsCollapsed){
     const blogGroup = (sub, arr) => '<div class="blogsub">'+sub+'</div>' + arr.map(b=>
       '<a class="bloglink" href="'+b.url+'" target="_blank" rel="noopener noreferrer">'+
@@ -429,11 +433,8 @@ function renderNav(){
   }
   html += '</div>';
   nav.innerHTML = html;
-  // 三角/博客标题点击 → 折叠该分组（阻止冒泡，避免触发整层筛选）
-  nav.querySelectorAll(".caret").forEach(c=>{
-    c.onclick = (e)=>{ e.stopPropagation(); toggleGroup(c.dataset.grp); };
-  });
-  nav.querySelectorAll(".navhdr.grphdr").forEach(h=>{
+  // 分组标题（层级 + 博客）整行点击 → 折叠/展开该分组
+  nav.querySelectorAll(".grphdr").forEach(h=>{
     h.onclick = ()=>toggleGroup(h.dataset.grp);
   });
   nav.querySelectorAll(".navitem").forEach(el=>{

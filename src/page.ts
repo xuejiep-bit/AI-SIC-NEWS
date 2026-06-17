@@ -75,6 +75,8 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .card .s { color:var(--dim); font-size:12.5px; line-height:1.5;
     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .tags { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:11px; color:var(--dim); margin-top:2px; }
+  .tags .srch { margin-left:auto; color:var(--acc); text-decoration:none; white-space:nowrap; }
+  .tags .srch:hover { text-decoration:underline; }
   .chip { padding:2px 8px; border-radius:20px; font-weight:600; color:#fff; }
   .empty { color:var(--dim); text-align:center; padding:60px 0; }
   /* ── 首页主推区：深度笔记大卡片 ── */
@@ -503,7 +505,9 @@ function renderCards(items){
       (summ?'<div class="s">'+esc(summ)+'</div>':'')+
       '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+
       '<span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span>'+
-      (regionTag?'<span>·</span><span>'+regionTag+'</span>':'')+'</div>'+
+      (regionTag?'<span>·</span><span>'+regionTag+'</span>':'')+
+      '<a class="srch" href="https://www.bing.com/search?q='+encodeURIComponent(title)+'" target="_blank" rel="noopener" title="原文打不开？用标题搜索这条新闻">🔍 搜标题</a>'+
+      '</div>'+
       '</div>';
   }).join("");
 }

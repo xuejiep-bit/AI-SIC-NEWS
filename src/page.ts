@@ -113,23 +113,6 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   /* ── 地区筛选 ── */
   .seg { display:flex; gap:6px; }
   .seg .btn { padding:6px 12px; }
-  /* ── 邮件订阅表单 ── */
-  .subbox { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px;
-    background:var(--panel); border:1px dashed var(--line); border-radius:12px; padding:12px 16px; }
-  .subbox .st { font-size:12.5px; color:var(--dim); }
-  .subbox input { background:var(--panel2); border:1px solid var(--line); color:var(--txt);
-    border-radius:8px; padding:8px 12px; width:220px; font-size:13px; }
-  .subbox .sub-msg { font-size:12px; color:var(--acc2); }
-  /* 进站第一眼的订阅大横幅（金色调，与蓝绿色地图横幅区分） */
-  .subhero { margin:0 0 16px; padding:16px 20px;
-    background:linear-gradient(90deg,rgba(245,179,1,.14),rgba(79,140,255,.08));
-    border:1px solid rgba(245,179,1,.45); border-radius:14px; }
-  .subhero .sl { margin-right:auto; }
-  .subhero .big { font-size:16px; font-weight:800; }
-  .subhero .st { margin-top:3px; }
-  .subhero input { width:240px; }
-  .subhero .sub-btn { background:var(--invest); border-color:var(--invest); color:#1a1a1a; font-weight:700; }
-  @media (max-width:700px){ .subhero input{width:100%;} .subhero .sub-btn{width:100%;} }
   .cards.notes { grid-template-columns:1fr; max-width:820px; }
   .card.note .pts { margin:4px 0 0; padding-left:20px; color:var(--txt); font-size:13px; line-height:1.7; }
   .card.note .pts li::marker { color:var(--invest); }
@@ -167,14 +150,6 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <div class="wrap">
   <aside id="nav"></aside>
   <main>
-    <!-- 订阅横幅：主内容区第一屏最顶部，进站即见（财报视图下隐藏） -->
-    <div id="subhero" class="subbox subhero" data-src="top">
-      <div class="sl"><div class="big">📮 AI 链 · 日报</div>
-      <div class="st">每个交易日一封，精选当日全球 AI 产业链最值得看的信号</div></div>
-      <input type="email" class="sub-email" placeholder="输入邮箱…" />
-      <button class="btn sub-btn">免费订阅</button>
-      <span class="sub-msg"></span>
-    </div>
     <!-- 顶部主推区：深度笔记（默认首页视图才显示） -->
     <div id="hero" style="display:none"></div>
     <!-- 产业链地图入口横幅 -->
@@ -476,44 +451,11 @@ function renderHero(){
       '<div class="ht">'+esc(n.title)+'</div>'+
       '<div class="hs">'+esc(ex)+'</div>'+
       '<div class="hd"><span>'+esc(n.date)+'</span><span>·</span><span>'+esc(n.channel)+'</span></div></a>';
-  }).join("")+'</div>'; // 订阅入口已移至顶部导航常驻，主推区不再重复放置
+  }).join("")+'</div>';
   $("#hero").innerHTML = html;
   // 「查看全部笔记」进入站内笔记列表；单张卡片进入独立笔记页（上面的 <a>）
   $("#allNotes").onclick = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true}; renderNav(); load(); };
 }
-// ── 邮件订阅（模块5：第一版仅收集邮箱入库，不自动发信）──
-function subFormHtml(source){
-  return '<div class="subbox" data-src="'+source+'">'+
-    '<span class="st">📮 每个交易日一封，精选当日全球 AI 产业链最值得看的信号</span>'+
-    '<input type="email" class="sub-email" placeholder="输入邮箱…" />'+
-    '<button class="btn sub-btn">订阅</button>'+
-    '<span class="sub-msg"></span></div>';
-}
-function wireSubForms(){
-  document.querySelectorAll(".subbox").forEach(box=>{
-    if(box.dataset.wired) return; box.dataset.wired = "1";
-    const input = box.querySelector(".sub-email");
-    const msg = box.querySelector(".sub-msg");
-    const btn = box.querySelector(".sub-btn");
-    const submit = async ()=>{
-      const email = input.value.trim();
-      if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(email)){ msg.textContent = "邮箱格式不正确"; return; }
-      btn.disabled = true; msg.textContent = "提交中…";
-      try{
-        const r = await fetch("/api/subscribe", { method:"POST",
-          headers:{ "content-type":"application/json" },
-          body: JSON.stringify({ email, source: box.dataset.src }) });
-        const d = await r.json();
-        if(d.ok){ msg.textContent = d.existed ? "你已订阅过啦" : "订阅成功 ✓"; input.value=""; }
-        else { msg.textContent = d.error || "提交失败，请重试"; }
-      }catch(e){ msg.textContent = "网络错误，请重试"; }
-      btn.disabled = false;
-    };
-    btn.onclick = submit;
-    input.onkeydown = e=>{ if(e.key==="Enter") submit(); };
-  });
-}
-
 // 地区筛选按钮（全部 / 国内 / 国际）
 function renderRegionSeg(){
   const opts = [["all","全部"],["cn","国内"],["global","国际"]];
@@ -633,8 +575,7 @@ function renderNotes(){
       '<div class="s">'+esc(ex)+'</div>'+
       '<div class="readmore">阅读全文 →</div>'+
       '</a>';
-  }).join("") + subFormHtml("notes"); // 笔记列表底部：邮件订阅入口
-  wireSubForms();
+  }).join("");
   // 来自地图页的 ?note=<id> 直达：滚动到对应笔记并高亮
   if(noteAnchor){
     const el = document.getElementById("note-"+noteAnchor);
@@ -648,7 +589,6 @@ function setView(v){
   view = v;
   const earn = v==="earnings";
   if(earn){ $("#hero").style.display="none"; $("#mapban").style.display="none"; }
-  $("#subhero").style.display = earn ? "none" : "flex"; // 订阅横幅：除财报视图外常驻
   $("#regionSeg").style.display = earn ? "none" : "flex";
   $("#earnings").style.display = earn ? "block" : "none";
   $("#cards").style.display = earn ? "none" : "";
@@ -739,7 +679,7 @@ $("#refreshBtn").onclick = async ()=>{
 })();
 
 const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
-applyI18n(); wireSubForms(); renderRegionSeg(); loadStats(); loadNotes(); load();
+applyI18n(); renderRegionSeg(); loadStats(); loadNotes(); load();
 </script>
 </body>
 </html>`;

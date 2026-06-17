@@ -116,42 +116,43 @@ const LAYERS = [
 ];
 const LAYER_COLOR = { upstream:"var(--up)", midstream:"var(--mid)", downstream:"var(--down)" };
 
-// 三层色带
+// 三层色带（每条色带顶部留出标题行的空间，节点首行从 band.top+46 起）
 const BANDS = [
-  { top:14,  h:328, bg:"rgba(79,140,255,.06)",  bd:"rgba(79,140,255,.22)",  color:"#4f8cff", name:"上游 · 基础设施层" },
-  { top:356, h:118, bg:"rgba(176,124,255,.06)", bd:"rgba(176,124,255,.22)", color:"#b07cff", name:"中游 · 技术与模型层" },
-  { top:488, h:288, bg:"rgba(54,211,153,.06)",  bd:"rgba(54,211,153,.20)",  color:"#36d399", name:"下游 · 应用层" },
+  { top:14,  h:332, bg:"rgba(79,140,255,.06)",  bd:"rgba(79,140,255,.22)",  color:"#4f8cff", name:"上游 · 基础设施层" },
+  { top:356, h:120, bg:"rgba(176,124,255,.06)", bd:"rgba(176,124,255,.22)", color:"#b07cff", name:"中游 · 技术与模型层" },
+  { top:486, h:300, bg:"rgba(54,211,153,.06)",  bd:"rgba(54,211,153,.20)",  color:"#36d399", name:"下游 · 应用层" },
 ];
 
 // 固定坐标（每个节点的左上角像素位置）。布局体现：芯片制造管线（左）+ 数据中心/电力管线（右）→ 汇入模型 → 扇出到下游应用。
+// 注意：各层首行的 y 要避开该层左上角的标题文字（band.top+46 起）。
 const POS = {
   // 上游
-  semi_equipment:      { x:40,   y:34  },
-  semi_material:       { x:214,  y:34  },
-  self_designed_chip:  { x:470,  y:34  },
-  power_energy:        { x:700,  y:34  },
-  cooling:             { x:874,  y:34  },
-  optical_interconnect:{ x:1048, y:34  },
-  foundry:             { x:127,  y:142 },
-  hbm_memory:          { x:301,  y:142 },
-  server_datacenter:   { x:787,  y:142 },
-  advanced_packaging:  { x:127,  y:250 },
-  ai_compute_chip:     { x:301,  y:250 },
-  cloud_compute:       { x:787,  y:250 },
+  semi_equipment:      { x:40,   y:60  },
+  semi_material:       { x:214,  y:60  },
+  self_designed_chip:  { x:470,  y:60  },
+  power_energy:        { x:700,  y:60  },
+  cooling:             { x:874,  y:60  },
+  optical_interconnect:{ x:1048, y:60  },
+  foundry:             { x:127,  y:160 },
+  hbm_memory:          { x:301,  y:160 },
+  server_datacenter:   { x:787,  y:160 },
+  advanced_packaging:  { x:127,  y:262 },
+  ai_compute_chip:     { x:301,  y:262 },
+  cloud_compute:       { x:787,  y:262 },
   // 中游
-  data_annotation:     { x:60,   y:392 },
-  closed_model:        { x:440,  y:392 },
-  open_model:          { x:672,  y:392 },
-  framework_tooling:   { x:980,  y:392 },
+  data_annotation:     { x:60,   y:402 },
+  closed_model:        { x:440,  y:402 },
+  open_model:          { x:672,  y:402 },
+  framework_tooling:   { x:980,  y:402 },
   // 下游
-  ai_agent:            { x:70,   y:540 },
-  ai_coding:           { x:330,  y:540 },
-  enterprise_saas:     { x:590,  y:540 },
-  consumer_app:        { x:850,  y:540 },
-  autonomous_driving:  { x:70,   y:660 },
-  robotics:            { x:330,  y:660 },
-  ai_hardware:         { x:590,  y:660 },
-  vertical_industry:   { x:850,  y:660 },
+  ai_agent:            { x:70,   y:548 },
+  ai_coding:           { x:330,  y:548 },
+  enterprise_saas:     { x:590,  y:548 },
+  consumer_app:        { x:850,  y:548 },
+  autonomous_driving:  { x:70,   y:668 },
+  robotics:            { x:330,  y:668 },
+  ai_hardware:         { x:590,  y:668 },
+  vertical_industry:   { x:850,  y:668 },
 };
 
 const DOWNSTREAM = ["ai_agent","ai_coding","enterprise_saas","consumer_app",

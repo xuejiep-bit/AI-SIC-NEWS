@@ -549,11 +549,18 @@ async function renderPicks(){
     const thr = (d && d.threshold) || 7; picksMin = thr;
     $("#status").textContent = "";
     $("#count").textContent = lang==="zh" ? (items.length+" 条") : (items.length+" picks");
-    // 阈值选择条：滑动 5-9 实时试调
-    const opts = [5,6,7,8,9].map(n=>
-      '<button class="pbtn'+(thr===n?' on':'')+'" data-min="'+n+'">≥'+n+'</button>').join("");
-    const bar = '<div class="pickbar"><span class="pl">价值阈值</span>'+opts+
-      '<span class="ph">分越高=越可能揭示供需/技术拐点或重大事件；近 48 小时内</span></div>';
+    // 用大白话的三档「看多重要的」代替「价值阈值≥N」，每档背后对应一个分数门槛
+    const LEVELS = [
+      { min:6, name:"多看一些", hint:"宽松：连信号较弱的也显示，数量最多" },
+      { min:7, name:"刚刚好",   hint:"推荐：质量和数量兼顾" },
+      { min:8, name:"只看最重磅", hint:"严格：只显示最确定的大事，数量最少" },
+    ];
+    const cur = thr<=6 ? 6 : (thr>=8 ? 8 : 7);
+    const opts = LEVELS.map(l=>
+      '<button class="pbtn'+(cur===l.min?' on':'')+'" data-min="'+l.min+'" title="'+l.hint+'">'+l.name+'</button>').join("");
+    const bar = '<div class="pickbar"><span class="pl">只看多重要的：</span>'+opts+
+      '<span class="ph">往「最重磅」收=更少但更值得看，往「多看一些」放=数量更多。'+
+      '每条左边的<b>数字</b>是这条消息的<b>重要度评分</b>（满分 10，越高越可能是供需/技术拐点或重大事件）。</span></div>';
     const cards = items.map(a=>{
       const seg = SEGLABEL[a.segment];
       const segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : "行业动态";
@@ -563,7 +570,7 @@ async function renderPicks(){
       const scClass = sc>=8 ? "hi" : (sc>=7 ? "mid" : "lo");
       const regionTag = a.region==="cn" ? "国内" : (a.region==="global" ? "国际" : "");
       return '<div class="card pick">'+
-        '<div class="pickhead"><span class="pickscore '+scClass+'">'+sc+'</span>'+
+        '<div class="pickhead"><span class="pickscore '+scClass+'" title="重要度评分 '+sc+'/10：越高越可能是重要的拐点或事件">'+sc+'</span>'+
           '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a></div>'+
         (a.value_reason?'<div class="pickreason">🎯 '+esc(a.value_reason)+'</div>':'')+
         '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+

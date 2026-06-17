@@ -51,6 +51,13 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .navitem .label { display:flex; align-items:center; overflow:hidden; }
   .navitem .n { color:var(--dim); font-size:11px; }
   .sub-seg { padding-left:18px; font-size:12.5px; }
+  /* 官方博客外链分组 */
+  .navhdr { font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--dim); margin:0 0 8px; }
+  .blogsub { font-size:11px; color:var(--mid,#b07cff); font-weight:700; margin:8px 0 3px 2px; }
+  .bloglink { display:flex; align-items:center; justify-content:space-between; gap:6px;
+    padding:6px 10px; border-radius:7px; font-size:12.5px; color:var(--txt); text-decoration:none; }
+  .bloglink:hover { background:var(--panel2); }
+  .bloglink .ext { color:var(--dim); font-size:11px; flex:none; }
   main { flex:1; padding:18px 24px; overflow:auto; max-height:calc(100vh - 62px); }
   .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
   input[type=search]{ background:var(--panel); border:1px solid var(--line); color:var(--txt);
@@ -333,6 +340,25 @@ function applyI18n(){
   if(view==="earnings") $("#q").placeholder = t("searchCo");
 }
 
+// 前沿大模型实验室官方博客（一手信源）。要增删/改链接，改这里即可。
+const BLOGS = {
+  closed: [
+    { name: "OpenAI · ChatGPT", url: "https://openai.com/news/" },
+    { name: "Anthropic · Claude", url: "https://www.anthropic.com/news" },
+    { name: "Google DeepMind · Gemini", url: "https://deepmind.google/discover/blog/" },
+    { name: "xAI · Grok", url: "https://x.ai/news" },
+    { name: "Microsoft AI", url: "https://blogs.microsoft.com/ai/" },
+  ],
+  open: [
+    { name: "Meta AI · Llama", url: "https://ai.meta.com/blog/" },
+    { name: "Mistral AI", url: "https://mistral.ai/news/" },
+    { name: "DeepSeek 深度求索", url: "https://api-docs.deepseek.com/news" },
+    { name: "通义千问 Qwen", url: "https://qwenlm.github.io/blog/" },
+    { name: "智谱 GLM", url: "https://z.ai/blog" },
+    { name: "Kimi · 月之暗面", url: "https://www.moonshot.cn/" },
+  ],
+};
+
 function renderNav(){
   const nav = $("#nav");
   let html = '<div class="group">';
@@ -363,6 +389,15 @@ function renderNav(){
     }
     html += '</div>';
   }
+  // 官方博客（前沿大模型实验室一手信源，外链新标签页打开）
+  html += '<div class="group">';
+  html += '<div class="navhdr">🔗 官方博客</div>';
+  const blogGroup = (sub, arr) => '<div class="blogsub">'+sub+'</div>' + arr.map(b=>
+    '<a class="bloglink" href="'+b.url+'" target="_blank" rel="noopener noreferrer">'+
+    '<span>'+esc(b.name)+'</span><span class="ext">↗</span></a>').join("");
+  html += blogGroup("闭源前沿", BLOGS.closed);
+  html += blogGroup("开源 / 国产", BLOGS.open);
+  html += '</div>';
   nav.innerHTML = html;
   nav.querySelectorAll(".navitem").forEach(el=>{
     el.onclick = ()=>{

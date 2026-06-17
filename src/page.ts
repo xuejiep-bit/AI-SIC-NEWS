@@ -58,6 +58,12 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
     padding:6px 10px; border-radius:7px; font-size:12.5px; color:var(--txt); text-decoration:none; }
   .bloglink:hover { background:var(--panel2); }
   .bloglink .ext { color:var(--dim); font-size:11px; flex:none; }
+  /* 分组折叠：每个层级/博客分组可点三角折叠 */
+  .caret { display:inline-block; width:13px; text-align:center; font-size:10px; color:var(--dim);
+    cursor:pointer; user-select:none; flex:none; }
+  .caret:hover { color:var(--txt); }
+  .navhdr.grphdr { display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .navhdr.grphdr:hover { color:var(--txt); }
   main { flex:1; padding:18px 24px; overflow:auto; max-height:calc(100vh - 62px); }
   .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
   input[type=search]{ background:var(--panel); border:1px solid var(--line); color:var(--txt);
@@ -359,6 +365,17 @@ const BLOGS = {
   ],
 };
 
+// 侧边栏各分组的折叠状态（默认全部折叠，避免列表过长），记忆在 localStorage
+let collapsedGroups = (()=>{
+  const stored = localStorage.getItem("navGroups");
+  return stored ? new Set(JSON.parse(stored)) : new Set(["upstream","midstream","downstream","blogs"]);
+})();
+function toggleGroup(g){
+  if(collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g);
+  localStorage.setItem("navGroups", JSON.stringify([...collapsedGroups]));
+  renderNav();
+}
+
 function renderNav(){
   const nav = $("#nav");
   let html = '<div class="group">';
@@ -381,24 +398,44 @@ function renderNav(){
   }
   html += '</div>';
   for(const L of TAX){
+    // 若当前正筛选本层级的某细分，则强制展开，方便看到选中项
+    const forceOpen = !sel.invest && !sel.video && !sel.notes && sel.layer===L.key;
+    const collapsed = collapsedGroups.has(L.key) && !forceOpen;
+    const headerOn = forceOpen && sel.segment==="all";
     html += '<div class="group">';
-    html += navItem(L.key,"all", lang==="zh"?L.zh:L.en, layerCount(L.key), L.color, false);
-    for(const s of L.segs){
-      const n = counts[L.key+"/"+s.key]||0;
-      html += navItem(L.key,s.key, lang==="zh"?s.zh:s.en, n, L.color, true);
+    // 层级标题：左侧三角折叠子项，点标题文字本身仍按整层筛选
+    html += '<div class="navitem '+(headerOn?'on':'')+'" data-layer="'+L.key+'" data-segment="all">'+
+      '<span class="label"><span class="caret" data-grp="'+L.key+'">'+(collapsed?"▸":"▾")+'</span>'+
+      '<span class="dot" style="background:'+L.color+'"></span><span>'+(lang==="zh"?L.zh:L.en)+'</span></span>'+
+      '<span class="n">'+layerCount(L.key)+'</span></div>';
+    if(!collapsed){
+      for(const s of L.segs){
+        const n = counts[L.key+"/"+s.key]||0;
+        html += navItem(L.key,s.key, lang==="zh"?s.zh:s.en, n, L.color, true);
+      }
     }
     html += '</div>';
   }
-  // 官方博客（前沿大模型实验室一手信源，外链新标签页打开）
+  // 官方博客（前沿大模型实验室一手信源，外链新标签页打开），可折叠
+  const blogsCollapsed = collapsedGroups.has("blogs");
   html += '<div class="group">';
-  html += '<div class="navhdr">🔗 官方博客</div>';
-  const blogGroup = (sub, arr) => '<div class="blogsub">'+sub+'</div>' + arr.map(b=>
-    '<a class="bloglink" href="'+b.url+'" target="_blank" rel="noopener noreferrer">'+
-    '<span>'+esc(b.name)+'</span><span class="ext">↗</span></a>').join("");
-  html += blogGroup("闭源前沿", BLOGS.closed);
-  html += blogGroup("开源 / 国产", BLOGS.open);
+  html += '<div class="navhdr grphdr" data-grp="blogs"><span class="caret" data-grp="blogs">'+(blogsCollapsed?"▸":"▾")+'</span><span>🔗 官方博客</span></div>';
+  if(!blogsCollapsed){
+    const blogGroup = (sub, arr) => '<div class="blogsub">'+sub+'</div>' + arr.map(b=>
+      '<a class="bloglink" href="'+b.url+'" target="_blank" rel="noopener noreferrer">'+
+      '<span>'+esc(b.name)+'</span><span class="ext">↗</span></a>').join("");
+    html += blogGroup("闭源前沿", BLOGS.closed);
+    html += blogGroup("开源 / 国产", BLOGS.open);
+  }
   html += '</div>';
   nav.innerHTML = html;
+  // 三角/博客标题点击 → 折叠该分组（阻止冒泡，避免触发整层筛选）
+  nav.querySelectorAll(".caret").forEach(c=>{
+    c.onclick = (e)=>{ e.stopPropagation(); toggleGroup(c.dataset.grp); };
+  });
+  nav.querySelectorAll(".navhdr.grphdr").forEach(h=>{
+    h.onclick = ()=>toggleGroup(h.dataset.grp);
+  });
   nav.querySelectorAll(".navitem").forEach(el=>{
     el.onclick = ()=>{
       if(el.dataset.invest){ sel={layer:"all", segment:"all", invest:true, video:false, notes:false}; }

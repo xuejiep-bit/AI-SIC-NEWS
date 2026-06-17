@@ -59,8 +59,8 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .bloglink:hover { background:var(--panel2); }
   .bloglink .ext { color:var(--dim); font-size:11px; flex:none; }
   /* 分组折叠：整行可点，三角更醒目 */
-  .caret { display:inline-block; width:16px; height:16px; line-height:16px; text-align:center; font-size:11px;
-    color:var(--acc); user-select:none; flex:none; }
+  .caret { display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; font-size:15px;
+    font-weight:700; color:var(--acc); user-select:none; flex:none; }
   .grphdr { display:flex; align-items:center; justify-content:space-between; gap:4px; cursor:pointer;
     padding:6px 10px; border-radius:7px; }
   .grphdr:hover { background:var(--panel2); }

@@ -1,6 +1,7 @@
-// 模块4：AI 产业链地图页（/map）。三层布局 + 节点档案卡。
-// 节点数据来自 src/mapconfig.json（经 /api/mapdata 下发，直接编辑该 JSON 即可更新页面）；
-// 「最新动态」条数来自 /api/stats 的分类计数，点击跳转到按该分类筛选后的资讯流。
+// 模块4：AI 产业链地图页（/map）。
+// 改造为「网络图」：固定坐标布局 + SVG 贝塞尔连线 + 绝对定位的信息卡片。
+// 节点数据来自 src/mapconfig.json（经 /api/mapdata 下发）；近30天资讯条数来自 /api/stats；
+// 笔记来自 /api/vidnotes。技术方案：纯 SVG + 原生 JS，零依赖、不引入构建步骤。
 
 export const MAP_HTML = /* html */ `<!DOCTYPE html>
 <html lang="zh">
@@ -27,18 +28,40 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
   header h1 { font-size:17px; margin:0; }
   header a.back { margin-left:auto; color:var(--acc); text-decoration:none; font-size:13px; }
   header a.back:hover { text-decoration:underline; }
-  .wrap { max-width:1080px; margin:0 auto; padding:22px 20px 60px; }
-  .hint { color:var(--dim); font-size:13px; margin:0 0 18px; }
-  /* 三层布局：每层一个色系区块，节点为色块按钮，自动换行（移动端适配） */
-  .layerbox { border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:14px; background:var(--panel); }
-  .layerbox h2 { margin:0 0 12px; font-size:14.5px; display:flex; align-items:center; gap:8px; }
-  .layerbox h2 .dot { width:10px; height:10px; border-radius:50%; }
-  .nodes { display:flex; flex-wrap:wrap; gap:8px; }
-  .node { border:1px solid var(--line); border-radius:9px; padding:8px 13px; cursor:pointer;
-    font-size:13px; color:var(--txt); background:var(--panel2); transition:all .15s; }
-  .node:hover { transform:translateY(-1px); }
-  .node.on { color:#fff; font-weight:600; }
-  .arrow { text-align:center; color:var(--dim); font-size:16px; margin:2px 0; }
+  .wrap { max-width:1280px; margin:0 auto; padding:22px 20px 60px; }
+  .hint { color:var(--dim); font-size:13px; margin:0 0 8px; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--dim); margin-bottom:14px; }
+  .legend .lg { display:inline-flex; align-items:center; gap:6px; }
+  .legend .sw { width:11px; height:11px; border-radius:3px; }
+
+  /* 网络图：固定尺寸画布，窄屏可横向滚动 */
+  #graphwrap { overflow-x:auto; overflow-y:hidden; padding-bottom:10px;
+    border:1px solid var(--line); border-radius:14px; background:
+      radial-gradient(circle at 20% 0%, rgba(79,140,255,.05), transparent 55%),
+      radial-gradient(circle at 80% 100%, rgba(54,211,153,.05), transparent 55%), var(--panel); }
+  #canvas { position:relative; width:1240px; height:790px; margin:0 auto; }
+  /* 三层色带（背景） */
+  .band { position:absolute; left:14px; border-radius:14px; z-index:1; }
+  .band .blabel { position:absolute; top:9px; left:14px; font-size:12px; font-weight:700; letter-spacing:.08em; }
+  /* 连线层 */
+  #edges { position:absolute; top:0; left:0; z-index:2; pointer-events:none; overflow:visible; }
+  .edge { fill:none; stroke:#46506b; stroke-width:1.3; opacity:.38;
+    transition:opacity .15s, stroke .15s, stroke-width .15s; }
+  /* hover 时：非高亮的线/节点淡化，高亮的突出 */
+  #canvas.hovering .edge { opacity:.07; }
+  #canvas.hovering .edge.hi { opacity:.95; stroke:var(--acc); stroke-width:2.1; }
+  /* 节点卡片 */
+  .node { position:absolute; width:160px; z-index:3; border:1px solid var(--line);
+    border-top:3px solid var(--up); border-radius:11px; background:var(--panel2);
+    padding:9px 12px; cursor:pointer; transition:opacity .15s, transform .12s, box-shadow .15s; }
+  .node:hover { transform:translateY(-2px); }
+  .node.on { box-shadow:0 0 0 2px var(--acc); border-color:var(--acc); }
+  .node .nname { font-size:13px; font-weight:600; line-height:1.3; }
+  .node .nmeta { margin-top:7px; display:flex; gap:10px; font-size:11px; color:var(--dim); }
+  .node .nmeta b { color:var(--txt); font-weight:700; }
+  #canvas.hovering .node { opacity:.28; }
+  #canvas.hovering .node.hi { opacity:1; }
+
   /* 档案卡：点击节点后在下方展开 */
   #detail { display:none; border:1px solid var(--line); border-radius:14px; background:var(--panel);
     padding:20px; margin-top:18px; }
@@ -72,39 +95,178 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
   <a class="back" href="/">← 返回资讯首页</a>
 </header>
 <div class="wrap">
-  <p class="hint">按「上游 → 中游 → 下游」三层展开，点击任一环节查看说明、代表公司与最新动态。</p>
-  <div id="layers"></div>
+  <p class="hint">按「上游 → 中游 → 下游」展开的产业链网络图：连线表示上下游依赖关系。<b>鼠标悬停</b>某环节会高亮它直接相连的上下游，<b>点击</b>查看说明、代表公司与最新动态。（窄屏可左右滑动看全图）</p>
+  <div class="legend">
+    <span class="lg"><span class="sw" style="background:var(--up)"></span>上游 · 基础设施层</span>
+    <span class="lg"><span class="sw" style="background:var(--mid)"></span>中游 · 技术与模型层</span>
+    <span class="lg"><span class="sw" style="background:var(--down)"></span>下游 · 应用层</span>
+    <span class="lg">📰 近30天资讯条数　🏢 代表公司数</span>
+  </div>
+  <div id="graphwrap"><div id="canvas"></div></div>
   <div id="detail"></div>
 </div>
 <script>
+// 画布尺寸
+const W = 1240, H = 790;
+
 const LAYERS = [
   { key:"upstream",   name:"上游 · 基础设施层", color:"var(--up)" },
   { key:"midstream",  name:"中游 · 技术与模型层", color:"var(--mid)" },
   { key:"downstream", name:"下游 · 应用层", color:"var(--down)" },
 ];
-let NODES = [];   // 节点配置（/api/mapdata，编辑 src/mapconfig.json 即可更新）
-let COUNTS = {};  // 各分类的资讯条数（/api/stats）
-let NOTES = [];   // 深度笔记（/api/vidnotes）：带 segs 标签的笔记自动挂到对应环节下
+const LAYER_COLOR = { upstream:"var(--up)", midstream:"var(--mid)", downstream:"var(--down)" };
+
+// 三层色带
+const BANDS = [
+  { top:14,  h:328, bg:"rgba(79,140,255,.06)",  bd:"rgba(79,140,255,.22)",  color:"#4f8cff", name:"上游 · 基础设施层" },
+  { top:356, h:118, bg:"rgba(176,124,255,.06)", bd:"rgba(176,124,255,.22)", color:"#b07cff", name:"中游 · 技术与模型层" },
+  { top:488, h:288, bg:"rgba(54,211,153,.06)",  bd:"rgba(54,211,153,.20)",  color:"#36d399", name:"下游 · 应用层" },
+];
+
+// 固定坐标（每个节点的左上角像素位置）。布局体现：芯片制造管线（左）+ 数据中心/电力管线（右）→ 汇入模型 → 扇出到下游应用。
+const POS = {
+  // 上游
+  semi_equipment:      { x:40,   y:34  },
+  semi_material:       { x:214,  y:34  },
+  self_designed_chip:  { x:470,  y:34  },
+  power_energy:        { x:700,  y:34  },
+  cooling:             { x:874,  y:34  },
+  optical_interconnect:{ x:1048, y:34  },
+  foundry:             { x:127,  y:142 },
+  hbm_memory:          { x:301,  y:142 },
+  server_datacenter:   { x:787,  y:142 },
+  advanced_packaging:  { x:127,  y:250 },
+  ai_compute_chip:     { x:301,  y:250 },
+  cloud_compute:       { x:787,  y:250 },
+  // 中游
+  data_annotation:     { x:60,   y:392 },
+  closed_model:        { x:440,  y:392 },
+  open_model:          { x:672,  y:392 },
+  framework_tooling:   { x:980,  y:392 },
+  // 下游
+  ai_agent:            { x:70,   y:540 },
+  ai_coding:           { x:330,  y:540 },
+  enterprise_saas:     { x:590,  y:540 },
+  consumer_app:        { x:850,  y:540 },
+  autonomous_driving:  { x:70,   y:660 },
+  robotics:            { x:330,  y:660 },
+  ai_hardware:         { x:590,  y:660 },
+  vertical_industry:   { x:850,  y:660 },
+};
+
+const DOWNSTREAM = ["ai_agent","ai_coding","enterprise_saas","consumer_app",
+  "autonomous_driving","robotics","ai_hardware","vertical_industry"];
+
+// 依赖关系（from → to）
+let EDGES = [
+  // 上游内部：制造管线
+  ["semi_equipment","foundry"], ["semi_material","foundry"],
+  ["foundry","advanced_packaging"], ["advanced_packaging","ai_compute_chip"],
+  ["hbm_memory","ai_compute_chip"],
+  // 上游内部：数据中心管线
+  ["power_energy","server_datacenter"], ["cooling","server_datacenter"],
+  ["optical_interconnect","server_datacenter"],
+  ["ai_compute_chip","server_datacenter"], ["self_designed_chip","server_datacenter"],
+  ["server_datacenter","cloud_compute"],
+  // 上游 → 中游（算力 + 数据/工具 支撑模型）
+  ["ai_compute_chip","closed_model"], ["ai_compute_chip","open_model"],
+  ["server_datacenter","closed_model"], ["server_datacenter","open_model"],
+  ["cloud_compute","closed_model"], ["cloud_compute","open_model"],
+  ["data_annotation","closed_model"], ["data_annotation","open_model"],
+  ["framework_tooling","closed_model"], ["framework_tooling","open_model"],
+];
+// 中游 → 下游所有应用（模型驱动应用）
+DOWNSTREAM.forEach(d=>{ EDGES.push(["closed_model",d]); EDGES.push(["open_model",d]); });
+
+// 邻接表（双向），用于 hover 高亮
+const ADJ = {};
+EDGES.forEach(([a,b])=>{ (ADJ[a]=ADJ[a]||new Set()).add(b); (ADJ[b]=ADJ[b]||new Set()).add(a); });
+
+let NODES = [];   // /api/mapdata
+let COUNTS = {};  // /api/stats 分类计数
+let NOTES = [];   // /api/vidnotes
 let current = null;
+const CARD = {};  // id -> 卡片 DOM
+let PATHS = [];   // 连线 path DOM（与 EDGES 同序）
 
 const $ = s => document.querySelector(s);
 function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 const layerOf = k => LAYERS.find(l=>l.key===k);
 
-function render(){
-  $("#layers").innerHTML = LAYERS.map((L,i)=>{
-    const nodes = NODES.filter(n=>n.layer===L.key);
-    return '<div class="layerbox" style="border-left:3px solid '+L.color+'">'+
-      '<h2><span class="dot" style="background:'+L.color+'"></span>'+esc(L.name)+'</h2>'+
-      '<div class="nodes">'+nodes.map(n=>
-        '<div class="node'+(current===n.id?' on':'')+'" data-id="'+n.id+'"'+
-        (current===n.id?' style="background:'+L.color+';border-color:'+L.color+'"':'')+'>'+esc(n.name)+'</div>'
-      ).join("")+'</div></div>'+
-      (i<LAYERS.length-1?'<div class="arrow">↓</div>':'');
+function buildGraph(){
+  const canvas = $("#canvas");
+  // 1) 色带
+  let html = BANDS.map(b=>
+    '<div class="band" style="top:'+b.top+'px;height:'+b.h+'px;width:'+(W-28)+'px;'+
+      'background:'+b.bg+';border:1px solid '+b.bd+'">'+
+      '<span class="blabel" style="color:'+b.color+'">'+esc(b.name)+'</span></div>'
+  ).join("");
+  // 2) 连线层（先占位，d 稍后计算）
+  html += '<svg id="edges" width="'+W+'" height="'+H+'">'+
+    EDGES.map((e,i)=>'<path class="edge" data-i="'+i+'" data-a="'+e[0]+'" data-b="'+e[1]+'"></path>').join("")+
+    '</svg>';
+  // 3) 节点卡片
+  html += NODES.map(n=>{
+    const p = POS[n.id]; if(!p) return "";
+    const col = LAYER_COLOR[n.layer] || "var(--up)";
+    const cnt = COUNTS[n.category_key]||0;
+    const coN = (n.companies&&n.companies.length)||0;
+    return '<div class="node" data-id="'+n.id+'" style="left:'+p.x+'px;top:'+p.y+'px;border-top-color:'+col+'">'+
+      '<div class="nname">'+esc(n.name)+'</div>'+
+      '<div class="nmeta"><span>📰 <b>'+cnt+'</b> 条</span><span>🏢 <b>'+coN+'</b> 家</span></div>'+
+    '</div>';
   }).join("");
-  document.querySelectorAll(".node").forEach(el=>{
-    el.onclick = ()=>{ current = el.dataset.id; render(); renderDetail(); };
+  canvas.innerHTML = html;
+
+  // 收集 DOM 引用 + 绑定交互
+  PATHS = [...canvas.querySelectorAll(".edge")];
+  canvas.querySelectorAll(".node").forEach(el=>{
+    const id = el.dataset.id; CARD[id] = el;
+    el.addEventListener("mouseenter", ()=>highlight(id));
+    el.addEventListener("mouseleave", clearHi);
+    el.addEventListener("click", ()=>select(id));
   });
+  requestAnimationFrame(drawEdges);
+}
+
+function center(id){
+  const el = CARD[id]; if(!el) return null;
+  return { x: el.offsetLeft + el.offsetWidth/2, y: el.offsetTop + el.offsetHeight/2 };
+}
+function drawEdges(){
+  EDGES.forEach((e,i)=>{
+    const a = center(e[0]), b = center(e[1]);
+    if(!a||!b) return;
+    const my = (a.y + b.y)/2;                       // 垂直 S 形贝塞尔，符合自上而下的产业链流向
+    PATHS[i].setAttribute("d", "M"+a.x+" "+a.y+" C "+a.x+" "+my+" "+b.x+" "+my+" "+b.x+" "+b.y);
+  });
+}
+
+function highlight(id){
+  const canvas = $("#canvas");
+  canvas.classList.add("hovering");
+  const nbrs = ADJ[id] || new Set();
+  // 节点：自己 + 直接相连的
+  canvas.querySelectorAll(".node").forEach(el=>{
+    const nid = el.dataset.id;
+    el.classList.toggle("hi", nid===id || nbrs.has(nid));
+  });
+  // 连线：端点含 id 的
+  PATHS.forEach(p=>{
+    p.classList.toggle("hi", p.dataset.a===id || p.dataset.b===id);
+  });
+}
+function clearHi(){
+  const canvas = $("#canvas");
+  canvas.classList.remove("hovering");
+  canvas.querySelectorAll(".node.hi").forEach(el=>el.classList.remove("hi"));
+  PATHS.forEach(p=>p.classList.remove("hi"));
+}
+
+function select(id){
+  current = id;
+  Object.values(CARD).forEach(el=>el.classList.toggle("on", el.dataset.id===id));
+  renderDetail();
 }
 
 function renderDetail(){
@@ -116,13 +278,6 @@ function renderDetail(){
   const cos = (n.companies&&n.companies.length)
     ? '<div class="chips">'+n.companies.map(c=>'<span class="co">'+esc(c)+'</span>').join("")+'</div>'
     : '<span class="todo" style="color:var(--dim);font-size:13px">待补充</span>';
-  // 笔记 = 自动关联（笔记的 segs 含本环节）+ mapconfig.json 里手动配置的链接
-  const auto = NOTES.filter(v=>(v.segs||[]).includes(n.category_key))
-    .map(v=>({ title:v.title, url:"/note?id="+encodeURIComponent(v.id) }));
-  const links = auto.concat(n.note_links||[]);
-  const notes = links.length
-    ? links.map(x=>'<a href="'+x.url+'">📝 '+esc(x.title)+'</a>').join("")
-    : '<span class="todo">待写</span>';
   // 科普卡片（给小白看的通俗说明）：what=这是什么 / position=在产业链的位置 / watch=投资看点
   const ex = n.explainer;
   const explain = ex ? '<div class="explain">'+
@@ -131,6 +286,13 @@ function renderDetail(){
       (ex.position ? '<div class="erow"><span class="lab">在产业链的位置</span>'+esc(ex.position)+'</div>' : '')+
       (ex.watch ? '<div class="erow"><span class="lab">投资看点</span>'+esc(ex.watch)+'</div>' : '')+
     '</div>' : '';
+  // 笔记 = 自动关联（笔记的 segs 含本环节）+ mapconfig.json 里手动配置的链接
+  const auto = NOTES.filter(v=>(v.segs||[]).includes(n.category_key))
+    .map(v=>({ title:v.title, url:"/note?id="+encodeURIComponent(v.id) }));
+  const links = auto.concat(n.note_links||[]);
+  const notes = links.length
+    ? links.map(x=>'<a href="'+x.url+'">📝 '+esc(x.title)+'</a>').join("")
+    : '<span class="todo">待写</span>';
   box.innerHTML =
     '<h3>'+esc(n.name)+'<span class="lay" style="background:'+L.color+'">'+esc(L.name)+'</span></h3>'+
     '<div class="desc">'+esc(n.desc||"")+'</div>'+
@@ -154,9 +316,10 @@ async function init(){
     NODES = md.nodes||[];
     NOTES = Array.isArray(vn) ? vn : [];
     (st.breakdown||[]).forEach(row=>{ if(row.segment) COUNTS[row.segment]=(COUNTS[row.segment]||0)+row.n; });
-    render();
+    buildGraph();
+    window.addEventListener("resize", ()=>requestAnimationFrame(drawEdges));
   }catch(e){
-    $("#layers").innerHTML = '<p class="hint">加载失败：'+esc(String(e))+'</p>';
+    $("#canvas").innerHTML = '<p class="hint">加载失败：'+esc(String(e))+'</p>';
   }
 }
 init();

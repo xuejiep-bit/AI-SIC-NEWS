@@ -22,7 +22,9 @@ export interface Env {
   ANTHROPIC_API_KEY?: string;
   USE_AI?: string;          // "1" / "true" 开启 Claude 语义分类+翻译
   AI_MODEL?: string;        // 默认 claude-opus-4-8
-  RETENTION_DAYS?: string;  // 保留天数，默认 30；<=0 表示不清理
+  RETENTION_DAYS?: string;  // 旧的按天保留配置（被 RETENTION_HOURS 覆盖；仍作兼容回退）
+  RETENTION_HOURS?: string; // 资讯保留小时数，默认 48；超时自动清理（重要资讯除外）
+  KEEP_SCORE?: string;      // 价值分 ≥ 此值的「重要资讯」永久保留，默认随 PICKS_THRESHOLD（7）
   EXPORT_TOKEN?: string;    // 订阅邮箱 CSV 导出接口的访问密钥；未设置时导出功能关闭
   PICKS_THRESHOLD?: string; // 「今日精选」默认分数阈值，默认 "7"（前端可用 ?min= 覆盖试调）
 }
@@ -181,12 +183,23 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
       .bind(...investSources).run();
   }
 
-  // 数据保留：清理过期文章
+  // 数据保留：默认只保留近 48 小时的资讯，超时自动清理；但「重要资讯」（价值分 ≥ KEEP_SCORE）永久保留。
+  // 仅当文章的发布时间和入库时间都早于截止点才删（避免刚抓到、但发布日期较老的内容被秒删）。
   let deleted = 0;
-  const retentionDays = parseInt(env.RETENTION_DAYS || "30", 10);
-  if (retentionDays > 0) {
-    const cutoff = now - retentionDays * 86400000;
-    const res = await env.DB.prepare(`DELETE FROM articles WHERE published_at < ?`).bind(cutoff).run();
+  const retentionHours = env.RETENTION_HOURS != null && env.RETENTION_HOURS !== ""
+    ? parseInt(env.RETENTION_HOURS, 10)
+    : parseInt(env.RETENTION_DAYS || "30", 10) * 24; // 兼容旧的按天配置
+  const keepScore = parseInt(env.KEEP_SCORE || env.PICKS_THRESHOLD || "7", 10) || 7;
+  if (retentionHours > 0) {
+    const cutoff = now - retentionHours * 3600 * 1000;
+    // 删除条件（且发布与入库时间都已过期）：视频类到期即删；普通资讯仅当「已评分且分数低于门槛」才删。
+    // 未评分（value_score IS NULL）的普通资讯不删——留给回填先评估，避免重要历史资讯在评分前被误删。
+    const res = await env.DB.prepare(
+      `DELETE FROM articles
+       WHERE published_at < ? AND fetched_at < ?
+         AND ( layer IN ('video','video_invest')
+               OR (value_score IS NOT NULL AND value_score < ?) )`,
+    ).bind(cutoff, cutoff, keepScore).run();
     deleted = res.meta?.changes ?? 0;
   }
 

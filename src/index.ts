@@ -192,13 +192,12 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
   const keepScore = parseInt(env.KEEP_SCORE || env.PICKS_THRESHOLD || "7", 10) || 7;
   if (retentionHours > 0) {
     const cutoff = now - retentionHours * 3600 * 1000;
-    // 删除条件（且发布与入库时间都已过期）：视频类到期即删；普通资讯仅当「已评分且分数低于门槛」才删。
-    // 未评分（value_score IS NULL）的普通资讯不删——留给回填先评估，避免重要历史资讯在评分前被误删。
+    // 到期（发布与入库时间都超过 48 小时）即清理；唯独「价值分 ≥ KEEP_SCORE」的重要资讯永久保留。
+    // 未评分（NULL，含历史资讯与视频）按到期清理——历史资讯不再评分，只有从现在起新抓的才打分。
     const res = await env.DB.prepare(
       `DELETE FROM articles
        WHERE published_at < ? AND fetched_at < ?
-         AND ( layer IN ('video','video_invest')
-               OR (value_score IS NOT NULL AND value_score < ?) )`,
+         AND (value_score IS NULL OR value_score < ?)`,
     ).bind(cutoff, cutoff, keepScore).run();
     deleted = res.meta?.changes ?? 0;
   }
@@ -273,8 +272,8 @@ async function queryPicks(env: Env, url: URL) {
   return { threshold: min, hours, items: results };
 }
 
-// 给历史文章补打价值分（纯关键词，零成本）。每次处理一批 value_score 为 NULL 的非视频资讯，
-// 由每小时 cron 调用，几小时内即可把存量全部补齐；也可通过 /api/refresh 后自然累积。
+// 给未评分文章补打价值分（纯关键词，零成本）。仅供手动 /api/rescore-value 调用——
+// 比如改了 picks.ts 关键词后想重打分时；常规流程下历史资讯不再自动评分。
 async function backfillValueScores(env: Env, limit = 1500): Promise<number> {
   const { results } = await env.DB.prepare(
     `SELECT id, title, summary FROM articles
@@ -526,13 +525,8 @@ export default {
     }
   },
 
-  // Cron 定时触发：抓取并入库，并给存量文章补打价值分（零成本，几小时内补齐）
+  // Cron 定时触发：抓取并入库（新资讯入库时即打价值分；历史资讯不再回填评分）
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(
-      ingest(env)
-        .then((s) => console.log("ingest", JSON.stringify(s)))
-        .then(() => backfillValueScores(env))
-        .then((n) => { if (n) console.log("backfill value_score", n); }),
-    );
+    ctx.waitUntil(ingest(env).then((s) => console.log("ingest", JSON.stringify(s))));
   },
 };

@@ -288,7 +288,7 @@ function renderDetail(){
       (ex.watch ? '<div class="erow"><span class="lab">投资看点</span>'+esc(ex.watch)+'</div>' : '')+
     '</div>' : '';
   // 笔记 = 自动关联（笔记的 segs 含本环节）+ mapconfig.json 里手动配置的链接
-  const auto = NOTES.filter(v=>(v.segs||[]).includes(n.category_key))
+  const auto = NOTES.filter(v=>(v.segs||[]).includes(n.category_key) && v.category!=="howto")
     .map(v=>({ title:v.title, url:"/note?id="+encodeURIComponent(v.id) }));
   const links = auto.concat(n.note_links||[]);
   const notes = links.length

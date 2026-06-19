@@ -70,9 +70,11 @@ async function init(){
   if(!n){ $("#loading").textContent = "未找到这篇笔记。"; return; }
   document.title = n.title + " · AI 链";
 
+  const catLabel = n.category==="howto" ? "🛠️ AI 实操" : "💡 投资观点";
+  const catChip = '<span class="chip" style="background:'+(n.category==="howto"?"#4f8cff":"var(--invest)")+';color:'+(n.category==="howto"?"#fff":"#1a1a1a")+'">'+catLabel+'</span>';
   const tks = (n.tickers||[]).map(t=>'<span class="chip">'+esc(t)+'</span>').join("");
   const segs = (n.segs||[]).map(s=>'<a class="seglink" href="/map">🔗 '+esc(segNames[s]||s)+'</a>').join("");
-  const chips = (tks||segs) ? '<div class="chips">'+tks+segs+'</div>' : "";
+  const chips = '<div class="chips">'+catChip+tks+segs+'</div>';
   const pts = (n.takeaways||[]).map(p=>'<li>'+esc(p)+'</li>').join("");
   const paras = (n.summary||"").split("\\n").filter(s=>s.trim()).map(s=>'<p>'+esc(s)+'</p>').join("");
 

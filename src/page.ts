@@ -94,6 +94,13 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   .pickscore.mid { background:var(--invest); }
   .pickscore.lo { background:#6b7280; color:#fff; }
   .pickreason { color:var(--invest); font-size:12.5px; line-height:1.6; margin:6px 0 2px; }
+  /* 大佬观点分类标签栏 */
+  .ntabs { grid-column:1/-1; display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .ntab { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:8px;
+    padding:6px 14px; cursor:pointer; font-size:13px; }
+  .ntab.on { background:var(--invest); border-color:var(--invest); color:#1a1a1a; font-weight:700; }
+  .ntab .nn { color:var(--dim); font-size:11px; }
+  .ntab.on .nn { color:#1a1a1a; }
   /* ── 首页主推区：深度笔记大卡片 ── */
   #hero { margin-bottom:16px; }
   #hero .hh { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
@@ -305,6 +312,10 @@ let investCount = 0;
 let videoCount = 0;
 let vinvestCount = 0;
 let noteList = [];   // 投资视频解读（/api/vidnotes，人工精选内容；为空时隐藏栏目）
+let noteCat = "all"; // 大佬观点分类筛选：all | invest(投资观点) | howto(AI 实操)
+// 笔记分类标签；未标 category 的默认按「投资观点」处理
+const NOTE_CATS = { invest:"💡 投资观点", howto:"🛠️ AI 实操" };
+const noteCatOf = n => (n.category==="howto" ? "howto" : "invest");
 let view = "news";       // "news" | "earnings"
 let earnMkt = "all";     // 财报视图的市场筛选
 
@@ -426,7 +437,9 @@ function renderHome(){
   if(home && noteList.length) renderHero();
 }
 function renderHero(){
-  const top = noteList.slice(0,3); // 最新 3 篇（数组头部即最新）
+  // 首页热门区只放「投资观点」（AI 实操/工具教程归到笔记列表的对应标签下）
+  const top = noteList.filter(n=>noteCatOf(n)==="invest").slice(0,3); // 最新 3 篇
+  if(!top.length){ $("#hero").style.display="none"; return; }
   let html = '<div class="hh"><h2>🎙️ 大佬观点</h2><span class="more" id="allNotes">查看全部 →</span></div>';
   html += '<div class="hcards">'+top.map(n=>{
     const ex = (n.takeaways&&n.takeaways[0]) || (n.summary||"").split("\\n")[0] || "";
@@ -602,20 +615,31 @@ function renderNotes(){
   let list = noteList;
   if(q) list = list.filter(n=>(n.title+n.videoTitle+n.channel+n.summary+
     (n.takeaways||[]).join("")+(n.tickers||[]).join("")).toLowerCase().includes(q));
+  // 分类筛选
+  if(noteCat!=="all") list = list.filter(n=>noteCatOf(n)===noteCat);
   $("#empty").style.display = list.length? "none":"block";
   $("#count").textContent = I18N[lang].count(list.length);
+  // 分类标签栏（带每类条数）
+  const nInv = noteList.filter(n=>noteCatOf(n)==="invest").length;
+  const nHow = noteList.filter(n=>noteCatOf(n)==="howto").length;
+  const tabs = [["all","全部",noteList.length],["invest",NOTE_CATS.invest,nInv],["howto",NOTE_CATS.howto,nHow]];
+  const tabBar = '<div class="ntabs">'+tabs.map(([k,label,n])=>
+    '<button class="ntab'+(noteCat===k?' on':'')+'" data-cat="'+k+'">'+esc(label)+' <span class="nn">'+n+'</span></button>').join("")+'</div>';
   // 列表只作索引：标题 + 标签 + 首条要点预览，点击进入独立笔记页放大阅读
-  box.innerHTML = list.map(n=>{
+  box.innerHTML = tabBar + list.map(n=>{
+    const cat = noteCatOf(n);
+    const catChip = '<span class="chip" style="background:'+(cat==="howto"?"var(--acc)":"var(--invest)")+';color:'+(cat==="howto"?"#fff":"#1a1a1a")+'">'+esc(NOTE_CATS[cat])+'</span>';
     const tks = (n.tickers||[]).map(tk=>'<span class="chip" style="background:var(--invest)">'+esc(tk)+'</span>').join("");
     const ex = (n.takeaways&&n.takeaways[0]) || (n.summary||"").split("\\n")[0] || "";
-    return '<a class="card note" href="/note?id='+encodeURIComponent(n.id)+'" style="text-decoration:none">'+
+    return '<a class="card note" id="note-'+esc(n.id)+'" href="/note?id='+encodeURIComponent(n.id)+'" style="text-decoration:none">'+
       '<div class="t">🎬 '+esc(n.title)+'</div>'+
-      '<div class="tags">'+tks+'<span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
+      '<div class="tags">'+catChip+tks+'<span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
       '<span>·</span><span>'+esc(n.videoTitle)+'</span></div>'+
       '<div class="s">'+esc(ex)+'</div>'+
       '<div class="readmore">阅读全文 →</div>'+
       '</a>';
   }).join("");
+  box.querySelectorAll(".ntab").forEach(b=>{ b.onclick = ()=>{ noteCat = b.dataset.cat; renderNotes(); }; });
   // 来自地图页的 ?note=<id> 直达：滚动到对应笔记并高亮
   if(noteAnchor){
     const el = document.getElementById("note-"+noteAnchor);

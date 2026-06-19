@@ -13,6 +13,7 @@ export interface VidNote {
   summary: string;    // 详细总结（几段话，用 \n 分段）
   tickers?: string[]; // 涉及的股票代码，如 ["NVDA","TSM"]
   segs?: string[];    // 关联的产业链环节 key（见 taxonomy.ts），地图页据此把笔记自动挂到对应环节下
+  category?: "invest" | "howto"; // 分类：invest=投资观点(默认) | howto=AI 实操/工具教程
 }
 
 export const VID_NOTES: VidNote[] = [
@@ -33,6 +34,7 @@ export const VID_NOTES: VidNote[] = [
     ],
     summary: "这是创业者 Dan Martell(Martell Ventures、《Buy Back Your Time》作者)的一期实操教程,主题是『别把 Claude 当花哨的搜索框用——那等于买了法拉利只开 10 公里』,他一口气演示了 16 个能省时间、提升生产力的 Claude 用法。\n开头几招偏『接入与配置』:① 记忆迁移——在设置里把 ChatGPT 对你的了解一次性导入 Claude;② 模型选择器——Haiku 最快最便宜(总结海量数据)、Sonnet 适合日常(写邮件)、Opus 适合复杂分析(找规律/指标)、或用自适应思考自动选;③④ Gmail 与 Google 日历连接器(还有 Slack/Notion/GitHub/Google Drive 等),让 Claude 直接搜邮件、起草回复、排会议、找空档,进阶玩法是把季度/年度目标喂给它、让它分析你的日历和邮件来当『业务教练』;他还分享一个『作弊码』:给助理开一个共享 Claude 账号连到自己邮箱,让助理自助查信息。\n中间几招让 Claude 直接在对话里产出成果:⑤ Artifacts(聊天里的可交互小应用,如可编辑销售表)、⑥ Interactive visuals(可点击的可视化,做『加速学习』)、⑦ Projects(预装上下文的项目文件夹、可多人协作,把内部文档/PDF/转写丢进知识区,系统提示≈过去的 custom GPT)、⑧ Voice mode(语音口述快 3 倍、自动转写)。\n后半段是『让 Claude 替你干活』的进阶/极客玩法:⑨ Chrome 扩展(在浏览器里自动抓数据、点按钮、找洞察)、⑩ Cowork(装桌面端 + 打开 computer use,Claude 接管电脑按步骤执行,如从 HubSpot 拉数→Google Sheet→图表→发 Slack)、⑪ Schedule Task(/schedule 定时任务,如每早自动读邮件出摘要)、⑫ Dispatch(手机扫码,在外面也能远程触发电脑上的 Cowork)、⑬ Claude Code(自然语言编程,他举例一位 60 岁的 CEO Todd 闭关三天用它造了个 CEO 仪表盘)、⑭ Claude Channels(用 iMessage/Telegram/Discord 远程驱动 Claude Code,需配 API key 和 skills)、⑮ Claude Skills(把重复任务固化成可复用技能,GitHub 上数千个现成的,如去 AI 味的 Humanizer)、⑯ Claude Design(claude.ai/design 做 PPT/落地页/App/动效,套用品牌风格,已与 Adobe 合作)。\n他穿插推广了自己的『AI company OS playbook』和数字分身平台 Apex,并以一句话收尾:你不用全用,知道它们存在就行,只要照着做一件就已领先 99% 的人;『这是 AI 最差的时候,六个月、一年后只会更好』,设计师等职业该尽快学会用它。\n(说明:这是一篇 Claude 使用技巧/效率教程,不同于本栏目其它『投资/产业链观点』内容,带一定个人产品推广色彩;收录用于了解 Claude 当前的产品能力边界。)",
     segs: ["closed_model", "ai_coding", "ai_agent"],
+    category: "howto",
   },
   {
     id: "2026-06-profg-openai-leak-spacex-bubble",

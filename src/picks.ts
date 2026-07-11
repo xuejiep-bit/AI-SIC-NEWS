@@ -18,7 +18,7 @@ interface SignalGroup {
 // 三类高价值信号
 const SIGNALS: SignalGroup[] = [
   {
-    key: "supply", label: "供需拐点",
+    key: "supply", label: "Supply/Demand",
     terms: [
       "产能", "扩产", "满产", "稼动率", "供不应求", "供应紧张", "供给紧张", "紧缺", "短缺", "缺货",
       "断供", "停产", "减产", "去库存", "补库存", "交期", "排产", "涨价", "提价", "调价", "价格上涨",
@@ -28,7 +28,7 @@ const SIGNALS: SignalGroup[] = [
     ],
   },
   {
-    key: "tech", label: "技术拐点",
+    key: "tech", label: "Tech inflection",
     terms: [
       "突破", "良率", "流片", "新架构", "新工艺", "新制程", "制程", "纳米", "试产", "小批量", "量产",
       "性能提升", "成本下降", "降本", "能效", "功耗", "数量级", "跨代", "首发", "全球首", "业界首",
@@ -38,7 +38,7 @@ const SIGNALS: SignalGroup[] = [
     ],
   },
   {
-    key: "event", label: "重大事件",
+    key: "event", label: "Major event",
     terms: [
       "融资", "估值", "ipo", "上市", "并购", "收购", "合并", "入股", "战略投资", "定增", "募资", "增发",
       "出口管制", "禁令", "禁售", "制裁", "管制", "限制出口", "补贴", "政策", "监管", "反垄断", "国产替代",
@@ -106,16 +106,16 @@ export function scoreValue(title: string, summary: string): ValueResult {
   if (score < 1) score = 1;
   if (score > 10) score = 10;
 
-  // 组装一句话理由
+  // Build a one-line reason
   let reason: string;
   if (firedLabels.length > 0) {
-    reason = "揭示【" + firedLabels.join("·") + "】";
-    if (sampleTerms.length) reason += "：" + sampleTerms.join("、");
-    if (tickerHits.length) reason += "（涉及 " + tickerHits.slice(0, 2).join("、") + "）";
+    reason = "Signals: " + firedLabels.join(" · ");
+    if (sampleTerms.length) reason += " — " + sampleTerms.join(", ");
+    if (tickerHits.length) reason += " (mentions " + tickerHits.slice(0, 2).join(", ") + ")";
   } else if (penalty > 0) {
-    reason = "偏评论/科普类，无明确产业链信号";
+    reason = "Commentary/explainer — no clear supply-chain signal";
   } else {
-    reason = "常规行业动态，无突出的供需/技术/事件信号";
+    reason = "Routine industry news — no standout supply/tech/event signal";
   }
 
   return { score, reason };

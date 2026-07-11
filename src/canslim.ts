@@ -1,11 +1,11 @@
-// CAN SLIM 教学版分析报告（William O'Neil 选股系统，覆盖 6 个字母 C/A/N/S/L/M）。
-// 移植自用户的 canslim_scan.py / canslim_scan_hk.py + canslim_report*.py，评分逻辑与报告文案保持一致；
-// 数据源由 akshare（东方财富）改为 Yahoo Finance（海外可直连，覆盖美股+港股）。
-// 与原版差异（已在报告中标注）：
-//   1) RS 标杆池沿用原脚本同一批股票；Yahoo 取数，权重公式一致；
-//   2) 港股 L 阈值用 scan 的 87（报告文案也统一为 87，避免与原 report 文案的 80 自相矛盾）；
-//   3) 季报同比改用 Yahoo 季度序列按「最近一期 vs ~1 年前同期」计算，半年报公司自动适配；
-//   4) 分销日/4 阶段等 scan-CLI 专有维度未纳入（原 .md 报告本就未输出）。
+// CAN SLIM teaching-style analysis report (William O'Neil's stock-selection system, covering the 6 letters C/A/N/S/L/M).
+// Ported from the user's canslim_scan.py / canslim_scan_hk.py + canslim_report*.py; the scoring logic and report copy are kept consistent.
+// The data source was changed from akshare (East Money) to Yahoo Finance (directly reachable overseas, covers both US and HK stocks).
+// Differences from the original (noted in the report):
+//   1) The RS benchmark universe reuses the same batch of stocks as the original scripts; data comes from Yahoo, weighting formula unchanged;
+//   2) The HK L threshold uses the scan's value of 87 (the report copy is also standardized to 87, to avoid contradicting the original report's copy of 80);
+//   3) Quarterly YoY is now computed from Yahoo's quarterly series as "latest period vs. ~1 year earlier", auto-adapting for companies that report semi-annually;
+//   4) Distribution days / 4-stage and other scan-CLI-specific dimensions are not included (the original .md report never output them either).
 
 import { normalizeSymbol, fetchDaily, fetchFin, type Daily, type FinPoint } from "./finance";
 
@@ -19,7 +19,7 @@ const RS_UNIVERSE_US = [
   "JPM", "V", "WMT", "XOM", "UNH", "MA", "JNJ", "PG", "HD", "COST",
   "ORCL", "KO", "NFLX", "ADBE", "CRM", "AMD", "QCOM", "CSCO", "MCD", "DIS", "BA", "GE",
 ];
-// 港股标杆池精简到 42 只（Cloudflare 免费版单次请求 ≤50 子请求；保留科技/金融/消费/医药/公用代表股）
+// HK benchmark universe trimmed to 42 names (Cloudflare free tier allows ≤50 subrequests per request; keeps representatives from tech/finance/consumer/pharma/utilities)
 const RS_UNIVERSE_HK = [
   "00700", "09988", "03690", "01810", "09618", "00992", "00981", "02382",
   "01024", "09999", "00285", "06618", "09888", "09660", "03888",
@@ -31,12 +31,12 @@ const RS_UNIVERSE_HK = [
 
 export function cfgFor(market: "us" | "hk"): Cfg {
   return market === "hk"
-    ? { market, benchSym: "^HSI", benchName: "恒生指数", curPrefix: "HK$ ", rsThreshold: 87, universe: RS_UNIVERSE_HK }
-    : { market, benchSym: "SPY", benchName: "标普 500", curPrefix: "$", rsThreshold: 80, universe: RS_UNIVERSE_US };
+    ? { market, benchSym: "^HSI", benchName: "Hang Seng Index", curPrefix: "HK$ ", rsThreshold: 87, universe: RS_UNIVERSE_HK }
+    : { market, benchSym: "SPY", benchName: "S&P 500", curPrefix: "$", rsThreshold: 80, universe: RS_UNIVERSE_US };
 }
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
-const sig = (ok: boolean) => (ok ? "✅ 通过" : "❌ 不通过");
+const sig = (ok: boolean) => (ok ? "✅ Pass" : "❌ Fail");
 
 const ma = (a: number[], n: number, i: number) => {
   if (i + 1 < n) return NaN;
@@ -44,7 +44,7 @@ const ma = (a: number[], n: number, i: number) => {
   return s / n;
 };
 
-// IBD 加权 4 阶段表现：40%×3月 + 20%×6月 + 20%×9月 + 20%×12月（需 ≥252 日）
+// IBD weighted 4-stage performance: 40%×3mo + 20%×6mo + 20%×9mo + 20%×12mo (requires ≥252 days)
 export function weightedPerf(close: number[]): number | null {
   if (close.length < 252) return null;
   const c = close, n = c.length - 1;
@@ -57,7 +57,7 @@ function calcRsRating(perf: number, all: number[]): number | null {
   return Math.round((rank / (all.length - 1)) * 99);
 }
 
-// 同比：最近一期 vs ~1 年前同期（±75 天匹配，兼容季报/半年报）
+// YoY: latest period vs. ~1 year earlier (±75-day matching, compatible with quarterly / semi-annual reports)
 function yoyLatest(series: { date: string; v: number }[]): number | null {
   if (series.length < 2) return null;
   const lt = Date.parse(series[0].date);
@@ -81,21 +81,21 @@ function annualYoYs(series: number[], n: number): number[] {
 interface Base { pattern: string; pivot?: number; depth?: number; breakout: boolean; stop?: number }
 function detectBase(d: Daily): Base {
   const lb = 60, len = d.close.length;
-  if (len < lb + 5) return { pattern: "数据不足", breakout: false };
+  if (len < lb + 5) return { pattern: "Insufficient data", breakout: false };
   const s = len - (lb + 5);
   let pivot = -Infinity, pIdx = s;
   for (let i = s; i < len; i++) if (d.high[i] > pivot) { pivot = d.high[i]; pIdx = i; }
   const afterLen = len - pIdx;
   const today = d.close[len - 1];
   const stop = round2(today * 0.92);
-  if (afterLen < 10) return { pattern: "刚创高点, 尚未形成基底", pivot: round2(pivot), breakout: false, stop };
+  if (afterLen < 10) return { pattern: "Just made a new high, no base formed yet", pivot: round2(pivot), breakout: false, stop };
   let baseLow = Infinity; for (let i = pIdx; i < len; i++) baseLow = Math.min(baseLow, d.low[i]);
   const depth = (1 - baseLow / pivot) * 100;
   const breakout = today > pivot * 0.99;
   let pattern: string;
-  if (breakout) pattern = (depth >= 8 && depth <= 35) ? `🟢 基底突破 (深度 ${depth.toFixed(1)}%, 类杯柄)` : `🟢 新高突破 (基底深度 ${depth.toFixed(1)}%)`;
-  else if (today > baseLow && today / pivot > 0.92) pattern = `🟡 接近 pivot ${round2(pivot)} (${((today / pivot - 1) * 100).toFixed(1)}%)`;
-  else pattern = `⚪ 远离 pivot (-${((1 - today / pivot) * 100).toFixed(1)}%)`;
+  if (breakout) pattern = (depth >= 8 && depth <= 35) ? `🟢 Base breakout (depth ${depth.toFixed(1)}%, cup-with-handle-like)` : `🟢 New-high breakout (base depth ${depth.toFixed(1)}%)`;
+  else if (today > baseLow && today / pivot > 0.92) pattern = `🟡 Near pivot ${round2(pivot)} (${((today / pivot - 1) * 100).toFixed(1)}%)`;
+  else pattern = `⚪ Far from pivot (-${((1 - today / pivot) * 100).toFixed(1)}%)`;
   return { pattern, pivot: round2(pivot), depth: round2(depth), breakout, stop };
 }
 
@@ -105,7 +105,7 @@ interface Funda {
 }
 function parseFundamentals(fin: { annual: FinPoint[]; quarterly: FinPoint[] }, market: "us" | "hk"): Funda {
   const out: Funda = { C: null, A: null, q_eps_yoy: null, q_rev_yoy: null, annual_yoy_3y: [], roe: null };
-  const pf: keyof FinPoint = market === "hk" ? "netIncome" : "eps"; // 美股用 EPS，港股用归母净利润
+  const pf: keyof FinPoint = market === "hk" ? "netIncome" : "eps"; // US uses EPS, HK uses net income to shareholders
 
   if (fin.quarterly.length) {
     const ps = fin.quarterly.filter((x) => x[pf] != null).map((x) => ({ date: x.date, v: x[pf] as number }));
@@ -124,7 +124,7 @@ function parseFundamentals(fin: { annual: FinPoint[]; quarterly: FinPoint[] }, m
   return out;
 }
 
-// 拉取 RS 标杆池表现（供 index.ts 当天缓存调用，避免每次报告都重拉几十只）
+// Fetch the RS benchmark universe's performance (called by index.ts with same-day caching, to avoid re-fetching dozens of names on every report)
 export async function computeUniverseReturns(market: "us" | "hk"): Promise<Record<string, number>> {
   const cfg = cfgFor(market);
   const syms = cfg.universe.map((s) => normalizeSymbol(s, market));
@@ -151,251 +151,251 @@ interface Result {
 
 function conclusion(r: Result): string {
   const { score_tech: tech, score_total: total } = r;
-  if (!r.M) return `🔴 **大盘环境不佳, 整体建议空仓**\n\n${r._cfg.benchName} 不在上升趋势, 这种环境下连最强的股票也涨不动. O'Neil 给散户最重要的建议: 熊市里**什么都别买**, 保护本金. → **建议: 此时不论这只股表现如何, 暂时不入场.**`;
-  if (total === 6) return `🟢 **强烈关注 (${total}/6)**\n\n这只股票同时满足 CAN SLIM 全部 6 项考核 —— 基本面好 + 技术面强 + 大盘配合. 这种'天时地利人和'的组合很罕见.\n\n→ **建议: 在 pivot 点附近买入, 严格设置 -8% 止损.**`;
-  if (tech === 4 && !r.A) return `🟡 **谨慎关注 — 经典'故事股' (${total}/6)**\n\n图形非常漂亮 (技术 4/4), 但公司**过去 3 年利润大起大落**, 不是一家稳健成长的公司. O'Neil 把这种'图形强基本面弱'的票叫做**故事股**, 短期可能涨得快, 但长期风险很高.\n\n→ **建议: 列入观察, 不建议立刻买. 等公司财报转好再说.**`;
+  if (!r.M) return `🔴 **Poor market environment; overall recommendation is to stay in cash**\n\n${r._cfg.benchName} is not in an uptrend, and in this environment even the strongest stocks struggle to rise. O'Neil's most important advice for retail investors: in a bear market, **buy nothing** and protect your capital. → **Recommendation: regardless of how this stock looks, do not enter for now.**`;
+  if (total === 6) return `🟢 **High priority (${total}/6)**\n\nThis stock satisfies all 6 CAN SLIM tests at once — good fundamentals + strong technicals + supportive market. This "everything aligned" combination is rare.\n\n→ **Recommendation: buy near the pivot point, with a strict -8% stop-loss.**`;
+  if (tech === 4 && !r.A) return `🟡 **Cautious watch — a classic "story stock" (${total}/6)**\n\nThe chart looks very attractive (technicals 4/4), but the company's **profits have swung wildly over the past 3 years** — this is not a steadily growing business. O'Neil calls this "strong chart, weak fundamentals" type a **story stock**: it may rise fast short-term but carries high long-term risk.\n\n→ **Recommendation: add to watchlist, do not buy immediately. Wait until earnings improve.**`;
   if (total === 5) {
     const missing = (["C", "A", "N", "S", "L", "M"] as const).filter((k) => !r[k])[0];
-    return `🟢 **强候选 (${total}/6)** — 仅 **${missing}** 项未达标\n\n接近完美的 CAN SLIM 候选. 单项不达标不一定是致命的, 具体看下面分析.\n\n→ **建议: 重点关注. 如果 ${missing} 是短期问题, 可考虑小仓位试水.**`;
+    return `🟢 **Strong candidate (${total}/6)** — only **${missing}** below threshold\n\nA near-perfect CAN SLIM candidate. A single miss is not necessarily fatal; see the analysis below for specifics.\n\n→ **Recommendation: watch closely. If ${missing} is a short-term issue, consider a small starter position.**`;
   }
-  if (total === 4) return `🟡 **观察名单 (${total}/6)**\n\n有看点但还不到出手时机. 通常意味着基本面或技术面有一面不够强势, 再等等更明确的信号.\n\n→ **建议: 列入观察, 定期复扫.**`;
-  return `🔴 **暂不考虑 (${total}/6)**\n\n信号不足 —— 不满足 CAN SLIM 大部分条件. 这并不意味着这只股票'坏', 只是它**当前不在 O'Neil 系统的买点上**.\n\n→ **建议: 跳过, 把时间花在更明确的机会上.**`;
+  if (total === 4) return `🟡 **Watchlist (${total}/6)**\n\nWorth noting but not yet time to act. Usually this means either the fundamentals or the technicals aren't strong enough; wait for a clearer signal.\n\n→ **Recommendation: add to watchlist and rescan periodically.**`;
+  return `🔴 **Skip for now (${total}/6)**\n\nInsufficient signals — most CAN SLIM conditions are not met. This does not mean the stock is "bad", only that it is **not currently at an O'Neil-system buy point**.\n\n→ **Recommendation: skip it and spend your time on clearer opportunities.**`;
 }
 
 function secM(r: Result): string {
   const c = r._cfg, m = r._market, isHk = c.market === "hk";
-  const unit = isHk ? " 点" : "", pre = isHk ? "" : "$";
-  return `## 第一道关：M - 大盘环境 ⭐ 最重要
+  const unit = isHk ? " pts" : "", pre = isHk ? "" : "$";
+  return `## Test 1: M - Market environment ⭐ most important
 
-**测什么**：现在是"牛市"还是"熊市"？
+**What it tests**: are we in a "bull market" or a "bear market"?
 
-**为什么重要**：研究表明，**75% 的股票会跟着大盘走**. 大盘跌的时候, 就算公司业绩再好, 股票也很难涨.
+**Why it matters**: research shows **75% of stocks follow the broad market**. When the market falls, even a company with great results struggles to rise.
 
-**怎么算**：${c.benchName}${isHk ? " (HSI)" : " (SPY ETF)"} 同时满足: ① 现价 > 50 日均线 ② 50 日均线 > 200 日均线.
+**How it's computed**: ${c.benchName}${isHk ? " (HSI)" : " (SPY ETF)"} must satisfy both: ① current price > 50-day MA ② 50-day MA > 200-day MA.
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| ${c.benchName} 现价 | ${pre}${m.close}${unit} |
-| 50 日均线 | ${pre}${m.ma50}${unit} |
-| 200 日均线 | ${pre}${m.ma200}${unit} |
+| ${c.benchName} current price | ${pre}${m.close}${unit} |
+| 50-day MA | ${pre}${m.ma50}${unit} |
+| 200-day MA | ${pre}${m.ma200}${unit} |
 
 ### ${sig(r.M)}
 
-${r.M ? `${c.benchName} 同时站稳两条均线, 50 日均线高于 200 日均线 —— 典型牛市格局, 是开仓买股的好时机.` : `${c.benchName} 不满足上升趋势条件, 大盘环境差. 请直接空仓, 别买任何股票.`}
+${r.M ? `${c.benchName} holds above both moving averages, with the 50-day MA above the 200-day MA — a textbook bull-market setup and a good time to open positions.` : `${c.benchName} does not meet the uptrend conditions; the market environment is poor. Stay in cash and buy nothing.`}
 
-💡 **小白须知**: **这是 O'Neil 给散户最重要的建议** —— 熊市里 75% 的股票会跌. **看不准时, 空仓就是最好的策略.**`;
+💡 **For beginners**: **this is O'Neil's most important advice for retail investors** — in a bear market 75% of stocks fall. **When you're unsure, cash is the best strategy.**`;
 }
 
 function secC(r: Result): string {
   const isHk = r._cfg.market === "hk";
-  const word = isHk ? "归母净利润" : "每股利润 (EPS)", period = isHk ? "报告期" : "季度";
+  const word = isHk ? "net income to shareholders" : "earnings per share (EPS)", period = isHk ? "reporting period" : "quarter";
   const f = r._funda;
   if (f.q_eps_yoy == null) {
-    return `## 第二道关：C - 最近这一${period}赚的钱有没有暴涨？
+    return `## Test 2: C - Did earnings in the latest ${period} surge?
 
-**测什么**：公司最新一个${period}的${word}, 比去年同期增长多少.
-**通过标准**：同比增长 ≥ +25%
+**What it tests**: how much the company's ${word} in its latest ${period} grew versus the same period a year ago.
+**Pass criteria**: YoY growth ≥ +25%
 
-### ⚠️ 数据缺失
+### ⚠️ Data missing
 
-Yahoo 未提供该股可比的${period}盈利数据 (可能是新股, 或财报频率特殊). → **建议**: 去雪球手动查最新盈利同比.`;
+Yahoo does not provide comparable ${period} earnings data for this stock (it may be newly listed, or have an unusual reporting frequency). → **Recommendation**: check the latest YoY earnings manually on a service like Xueqiu.`;
   }
   const eps = f.q_eps_yoy;
-  const warn = eps >= 100 ? `\n⚠️ **小白注意**: ${eps.toFixed(0)}% 看似夸张, 警惕**'基数效应'** —— 去年同期利润若极低, 百分比会被放大. 请去雪球查盈利**绝对值**确认.\n` : "";
-  const rev = f.q_rev_yoy != null ? `\n**额外参考 — 营收同比 ${f.q_rev_yoy >= 0 ? "+" : ""}${f.q_rev_yoy.toFixed(1)}%** (${f.q_rev_yoy >= 25 ? "好" : "一般"}). O'Neil 希望营收也加速, 利润才扎实.` : "";
-  return `## 第二道关：C - 最近这一${period}${word}有没有暴涨？
+  const warn = eps >= 100 ? `\n⚠️ **Beginner note**: ${eps.toFixed(0)}% looks dramatic — beware the **"base effect"**: if last year's earnings were extremely low, the percentage gets exaggerated. Check the **absolute** earnings figure to confirm.\n` : "";
+  const rev = f.q_rev_yoy != null ? `\n**Extra reference — revenue YoY ${f.q_rev_yoy >= 0 ? "+" : ""}${f.q_rev_yoy.toFixed(1)}%** (${f.q_rev_yoy >= 25 ? "good" : "moderate"}). O'Neil wants revenue accelerating too, so that earnings are solid.` : "";
+  return `## Test 2: C - Did ${word} in the latest ${period} surge?
 
-**测什么**：公司**最新一个${period}**的${word}, 比去年同期增长多少.
+**What it tests**: how much the company's ${word} in its **latest ${period}** grew versus the same period a year ago.
 
-**为什么重要**：业绩突然加速增长, 往往是一波大行情的开端.
+**Why it matters**: a sudden acceleration in results is often the start of a big move.
 
-**通过标准**：同比增长 ≥ **+25%** (O'Neil 推荐: 最好 ≥40%).
+**Pass criteria**: YoY growth ≥ **+25%** (O'Neil recommends ideally ≥40%).
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| 最新${period} 盈利同比 | **${eps >= 0 ? "+" : ""}${eps.toFixed(1)}%** |
-${f.q_rev_yoy != null ? `| 最新${period} 营收同比 | ${f.q_rev_yoy >= 0 ? "+" : ""}${f.q_rev_yoy.toFixed(1)}% |` : ""}
+| Latest ${period} earnings YoY | **${eps >= 0 ? "+" : ""}${eps.toFixed(1)}%** |
+${f.q_rev_yoy != null ? `| Latest ${period} revenue YoY | ${f.q_rev_yoy >= 0 ? "+" : ""}${f.q_rev_yoy.toFixed(1)}% |` : ""}
 
 ### ${sig(r.C)}
 
-**盈利同比 ${eps >= 0 ? "+" : ""}${eps.toFixed(1)}%**, ${r.C ? "达标 (≥25%)" : "未达标 (要求 ≥25%)"}
+**Earnings YoY ${eps >= 0 ? "+" : ""}${eps.toFixed(1)}%**, ${r.C ? "meets the threshold (≥25%)" : "below threshold (requires ≥25%)"}
 ${warn}${rev}`;
 }
 
 function secA(r: Result): string {
-  const word = r._cfg.market === "hk" ? "净利润" : "EPS";
+  const word = r._cfg.market === "hk" ? "net income" : "EPS";
   const f = r._funda, yoys = f.annual_yoy_3y;
   if (!yoys.length) {
-    return `## 第三道关：A - 公司过去 3 年的成长性
+    return `## Test 3: A - The company's growth over the past 3 years
 
-**测什么**：过去 3 年, 公司每年的${word}是不是稳定增长.
-**通过标准**：3 年中至少 2 年 ${word}同比 ≥25%
+**What it tests**: whether the company's ${word} grew steadily each year over the past 3 years.
+**Pass criteria**: ${word} YoY ≥25% in at least 2 of 3 years
 
-### ⚠️ 数据缺失
+### ⚠️ Data missing
 
-Yahoo 未提供足够的年报数据, 请手动查询.`;
+Yahoo does not provide enough annual-report data; please check manually.`;
   }
   const nowY = new Date().getFullYear();
-  const rows = yoys.map((y, i) => `| ${nowY - i - 1} | ${y >= 0 ? "+" : ""}${y.toFixed(1)}% | ${y >= 25 ? "✅ 达标" : "❌ 未达标"} |`).join("\n");
+  const rows = yoys.map((y, i) => `| ${nowY - i - 1} | ${y >= 0 ? "+" : ""}${y.toFixed(1)}% | ${y >= 25 ? "✅ Pass" : "❌ Fail"} |`).join("\n");
   const okc = yoys.filter((x) => x >= 25).length;
   const volatile = Math.max(...yoys) - Math.min(...yoys) > 100
-    ? `\n⚠️ **重要观察**: 这家公司的年利润**剧烈波动** (最高 ${Math.max(...yoys) >= 0 ? "+" : ""}${Math.max(...yoys).toFixed(1)}%, 最低 ${Math.min(...yoys).toFixed(1)}%). O'Neil 喜欢**'稳定加速'的公司**, 而非大起大落.\n` : "";
+    ? `\n⚠️ **Important observation**: this company's annual profits **swing sharply** (high ${Math.max(...yoys) >= 0 ? "+" : ""}${Math.max(...yoys).toFixed(1)}%, low ${Math.min(...yoys).toFixed(1)}%). O'Neil favors **companies with "steady acceleration"**, not wild swings.\n` : "";
   const roe = f.roe != null
-    ? `\n### 额外加分项 — ROE\n\n**ROE = ${f.roe.toFixed(2)}%**  (${f.roe >= 17 ? "✅ 达标 (≥17%)" : "❌ 未达标 (O'Neil 要求 ≥17%)"})\n\n💡 ROE 测公司用股东的钱赚钱的效率, 17% 是优秀公司的门槛.` : "";
-  return `## 第三道关：A - 公司过去 3 年是不是稳定成长？
+    ? `\n### Bonus item — ROE\n\n**ROE = ${f.roe.toFixed(2)}%**  (${f.roe >= 17 ? "✅ Pass (≥17%)" : "❌ Fail (O'Neil requires ≥17%)"})\n\n💡 ROE measures how efficiently the company turns shareholders' money into profit; 17% is the bar for an excellent company.` : "";
+  return `## Test 3: A - Has the company grown steadily over the past 3 years?
 
-**测什么**：过去 3 年, 公司每年的利润是不是都在稳定上涨.
+**What it tests**: whether the company's profits rose steadily every year over the past 3 years.
 
-**为什么重要**：一年好不算好, **年年好**才说明真有竞争力.
+**Why it matters**: one good year isn't enough; **year after year** is what shows real competitive strength.
 
-**通过标准**：3 年中至少 **2 年** ${word}同比 ≥25%.
+**Pass criteria**: ${word} YoY ≥25% in at least **2** of 3 years.
 
-| 年份 | ${word}同比 | 是否达标 |
+| Year | ${word} YoY | Pass? |
 |---|---:|---|
 ${rows}
 
 ### ${sig(r.A)}
 
-${okc}/3 年达标 — ${r.A ? "通过" : "不通过"}.
+${okc}/3 years meet the threshold — ${r.A ? "pass" : "fail"}.
 ${volatile}${roe}
 
-⚠️ **核心提醒**: **A 不过关, 即使技术面再漂亮也要谨慎.** 这种"图形强、基本面弱"的票叫**故事股**, 是散户亏钱最常见的原因.
+⚠️ **Core reminder**: **if A fails, be cautious even when the technicals look great.** This "strong chart, weak fundamentals" type is a **story stock**, the most common reason retail investors lose money.
 
-⚠️ **数据深度说明**: Yahoo 年报通常覆盖最近 4 年, 故取最近 3 个同比; 比 O'Neil 期望的更长历史短, 结论强度相应打折.`;
+⚠️ **Note on data depth**: Yahoo's annual reports typically cover the last 4 years, so we take the 3 most recent YoY changes; this is shorter than the longer history O'Neil would want, so the strength of the conclusion is discounted accordingly.`;
 }
 
 function secN(r: Result): string {
   const pre = r._cfg.curPrefix;
-  return `## 第四道关：N - 股价是不是接近 1 年新高？
+  return `## Test 4: N - Is the price near a 1-year high?
 
-**测什么**：当前股价离过去 52 周最高点有多远.
+**What it tests**: how far the current price is from its highest point over the past 52 weeks.
 
-**为什么重要**：CAN SLIM **追强不追弱**. 大涨之前的股票往往先创新高 —— 说明聪明钱已在买、没有套牢盘.
+**Why it matters**: CAN SLIM **chases strength, not weakness**. Stocks poised for a big move often make new highs first — a sign smart money is already buying and there's no trapped supply overhead.
 
-**通过标准**：当前价距 52 周高点 ≤ 5%（或正在突破基底）
+**Pass criteria**: current price within ≤5% of the 52-week high (or breaking out of a base)
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| 52 周最高价 | ${pre}${r.high_52w} |
-| 当前价距高点 | **${r.dist_to_high >= 0 ? "+" : ""}${r.dist_to_high.toFixed(2)}%** |
+| 52-week high | ${pre}${r.high_52w} |
+| Distance from high | **${r.dist_to_high >= 0 ? "+" : ""}${r.dist_to_high.toFixed(2)}%** |
 
 ### ${sig(r.N)}
 
-${r.N ? `非常接近新高 (差 ${Math.abs(r.dist_to_high).toFixed(2)}%) 或正在突破, 通过.` : `距高点 ${Math.abs(r.dist_to_high).toFixed(2)}%, 离新高还远, 仍在弱势整理阶段.`}
+${r.N ? `Very close to a new high (within ${Math.abs(r.dist_to_high).toFixed(2)}%) or breaking out — pass.` : `${Math.abs(r.dist_to_high).toFixed(2)}% below the high, still far from a new high and in a weak consolidation phase.`}
 
-💡 **小白须知**: **真正的大牛股都是从新高一路涨上去, 而不是从底部反弹**. 反直觉但重要.`;
+💡 **For beginners**: **the truly great winners climb all the way up from new highs, not bounce off the bottom**. Counterintuitive but important.`;
 }
 
 function secS(r: Result): string {
-  return `## 第五道关：S - 大资金有没有进场？
+  return `## Test 5: S - Is big money moving in?
 
-**测什么**：今天成交量比过去 50 天平均量大多少倍.
+**What it tests**: how many times today's volume exceeds the average of the past 50 days.
 
-**为什么重要**：股价上涨**必须有成交量配合**. 大资金买入时单笔金额巨大, 会显著放量.
+**Why it matters**: a price rise **must be confirmed by volume**. When big money buys, the size of each order is huge and drives a clear volume surge.
 
-**通过标准**：当日量 / 50 日均量 ≥ **1.5 倍**
+**Pass criteria**: today's volume / 50-day average volume ≥ **1.5×**
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| 当日成交量 | ${r.volume.toLocaleString()} |
-| 50 日均量 | ${r.vol_ma50.toLocaleString()} |
-| **量比** | **${r.vol_ratio.toFixed(2)}x** |
+| Today's volume | ${r.volume.toLocaleString()} |
+| 50-day average volume | ${r.vol_ma50.toLocaleString()} |
+| **Volume ratio** | **${r.vol_ratio.toFixed(2)}x** |
 
 ### ${sig(r.S)}
 
-${r.S ? `量比 ${r.vol_ratio.toFixed(2)}x, 显著放量, 大资金确实在进场.` : `量比 ${r.vol_ratio.toFixed(2)}x, 成交量平常, 没有放量信号.`}
+${r.S ? `Volume ratio ${r.vol_ratio.toFixed(2)}x — a clear volume surge; big money is indeed moving in.` : `Volume ratio ${r.vol_ratio.toFixed(2)}x — volume is ordinary, with no surge signal.`}
 
-💡 **小白须知**: **"量价齐升才是真涨, 缩量上涨是假涨".**`;
+💡 **For beginners**: **"a rise on rising volume is real; a rise on shrinking volume is fake".**`;
 }
 
 function secL(r: Result): string {
   const th = r._cfg.rsThreshold, rs = r.rs_rating;
-  return `## 第六道关：L - 这只股是行业领头吗？
+  return `## Test 6: L - Is this stock an industry leader?
 
-**测什么**：这只股过去 1 年的涨幅, 在标杆股池里排第几 (0-99).
+**What it tests**: where this stock's gain over the past year ranks within the benchmark universe (0-99).
 
-**为什么重要**：CAN SLIM 核心理念之一是 **"买领头羊"**.
+**Why it matters**: one of CAN SLIM's core ideas is **"buy the leaders"**.
 
-**怎么算**：O'Neil 加权公式 \`40%×近3月 + 20%×6月 + 20%×9月 + 20%×12月\`, 在 ${r._cfg.universe.length} 只标杆股池里排名转 0-99.
+**How it's computed**: O'Neil's weighted formula \`40%×last 3mo + 20%×6mo + 20%×9mo + 20%×12mo\`, then ranked 0-99 within the ${r._cfg.universe.length}-name benchmark universe.
 
-**通过标准**：RS Rating ≥ **${th}**
+**Pass criteria**: RS Rating ≥ **${th}**
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
 | **RS Rating** | **${rs == null ? "N/A" : rs} / 99** |
 
 ### ${sig(r.L)}
 
-${r.L ? `属于领头羊级别的强势股 (≥${th}).` : `RS Rating ${rs == null ? "无法计算" : "只有 " + rs}, 弱于市场领头 (需 ≥${th}), 是减分项.`}
+${r.L ? `A leader-grade strong stock (≥${th}).` : `RS Rating ${rs == null ? "cannot be computed" : "is only " + rs}, weaker than the market leaders (needs ≥${th}) — a negative.`}
 
-💡 **小白须知**: 别被"已经涨太多"误导. **80% 的最大涨幅股, 大涨前 RS Rating 就已很高**. 强者恒强.`;
+💡 **For beginners**: don't be misled by "it's already risen too much". **80% of the biggest winners already had a high RS Rating before their big move.** Strength begets strength.`;
 }
 
 function secChart(r: Result): string {
   const pre = r._cfg.curPrefix;
   const buy = r.pivot == null ? "" : `
-### 买卖点参考
+### Buy/sell reference points
 
-| 关键价位 | 价格 |
+| Key level | Price |
 |---|---:|
-| 当前价 | ${pre}${r.price} |
-| Pivot (突破基准) | ${pre}${r.pivot} |
-| 自动止损位 (-8%) | ${pre}${r.stop} |
+| Current price | ${pre}${r.price} |
+| Pivot (breakout benchmark) | ${pre}${r.pivot} |
+| Auto stop-loss (-8%) | ${pre}${r.stop} |
 
-💡 **小白须知**:
-- **Pivot** = 之前盘整的高点, 突破即"买入信号".
-- **止损 -8%** 是 O'Neil 的**铁律** —— 买入后跌破无条件卖出.
+💡 **For beginners**:
+- **Pivot** = the high of the prior consolidation; a breakout above it is the "buy signal".
+- **-8% stop-loss** is O'Neil's **iron rule** — sell unconditionally once it breaks below after you buy.
 `;
-  return `## 📈 图形分析与买卖点\n\n**当前形态**: ${r.base_pattern}\n${buy}`;
+  return `## 📈 Chart analysis and buy/sell points\n\n**Current pattern**: ${r.base_pattern}\n${buy}`;
 }
 
 function secLearning(r: Result): string {
   const L: string[] = [];
-  if (!r.M) L.push("**大盘环境是第一过滤器** — M 不过关, 其他都不用看, 直接空仓.");
-  else L.push("**大盘 M 通过** 是开仓的前提. 牛市才入场, 熊市空仓.");
-  if (r.score_tech >= 3 && r.score_fund === 0) L.push("**'故事股'的识别** — 图形漂亮但基本面差, 暴涨暴跌, 不适合长期持有.");
-  if (r.C && (r._funda.q_eps_yoy ?? 0) >= 100) L.push("**警惕'基数效应'** — 几倍同比可能只是去年基数极低, 看绝对值.");
+  if (!r.M) L.push("**The market environment is the first filter** — if M fails, nothing else matters; just stay in cash.");
+  else L.push("**M passing** is the prerequisite for opening a position. Enter in bull markets, hold cash in bear markets.");
+  if (r.score_tech >= 3 && r.score_fund === 0) L.push("**Spotting the 'story stock'** — pretty chart but weak fundamentals, surging and crashing, unsuitable for long-term holding.");
+  if (r.C && (r._funda.q_eps_yoy ?? 0) >= 100) L.push("**Beware the 'base effect'** — a multi-fold YoY may just reflect an extremely low base last year; look at the absolute value.");
   if (!r.A && r._funda.annual_yoy_3y.length && Math.max(...r._funda.annual_yoy_3y) - Math.min(...r._funda.annual_yoy_3y) > 100)
-    L.push("**利润稳定性比单年高增长更重要** — 这家公司利润大起大落, 不是优质成长股.");
-  if (r.L && r.rs_rating != null && r.rs_rating >= 90) L.push(`**RS Rating ${r.rs_rating} 极强** — 强者恒强, 领头羊往往还能继续涨.`);
-  else if (!r.L) L.push("**弱势股不要碰** — RS Rating 低意味着市场不青睐.");
-  if (r.S && r.vol_ratio >= 2) L.push(`**放量突破很重要** — 今天成交量是平时的 ${r.vol_ratio.toFixed(1)} 倍.`);
-  L.push("**8% 止损是铁律** — 任何买入位 -8% 必须无条件卖出.");
-  return `## 🎓 这次分析教你的几件事\n\n${L.map((x, i) => `${i + 1}. ${x}`).join("\n")}`;
+    L.push("**Stability of profits matters more than a single year of high growth** — this company's profits swing wildly, so it is not a quality growth stock.");
+  if (r.L && r.rs_rating != null && r.rs_rating >= 90) L.push(`**RS Rating ${r.rs_rating} is extremely strong** — strength begets strength; leaders often keep rising.`);
+  else if (!r.L) L.push("**Don't touch weak stocks** — a low RS Rating means the market doesn't favor it.");
+  if (r.S && r.vol_ratio >= 2) L.push(`**Breakouts on volume matter** — today's volume is ${r.vol_ratio.toFixed(1)}× the usual.`);
+  L.push("**The 8% stop-loss is an iron rule** — sell unconditionally at -8% from any buy point.");
+  return `## 🎓 A few things this analysis teaches you\n\n${L.map((x, i) => `${i + 1}. ${x}`).join("\n")}`;
 }
 
 function secChecklist(benchName: string): string {
-  return `## ✅ 你下次自己分析股票时的检查清单
+  return `## ✅ Your checklist for analyzing stocks next time
 
-### 第一步：先看大盘 (M)
-- [ ] ${benchName} 现价 > 50 日均线？
-- [ ] 50 日均线 > 200 日均线？
-- [ ] **两条都满足 → 可买. 任一不满足 → 空仓.**
+### Step 1: check the market first (M)
+- [ ] Is ${benchName}'s current price > 50-day MA?
+- [ ] Is the 50-day MA > 200-day MA?
+- [ ] **Both satisfied → can buy. Either one not → stay in cash.**
 
-### 第二步：看基本面 (C + A)
-- [ ] 最新一期盈利同比 ≥ 25%？
-- [ ] 过去 3 年至少 2 年盈利同比 ≥ 25%？
-- [ ] ROE ≥ 17%？
+### Step 2: check the fundamentals (C + A)
+- [ ] Latest-period earnings YoY ≥ 25%?
+- [ ] At least 2 of the past 3 years with earnings YoY ≥ 25%?
+- [ ] ROE ≥ 17%?
 
-### 第三步：看技术面 (N + S + L)
-- [ ] 股价距 52 周新高 ≤ 5%？
-- [ ] 当日量 / 50 日均量 ≥ 1.5？
-- [ ] 1 年涨幅跑赢${benchName}？
+### Step 3: check the technicals (N + S + L)
+- [ ] Price within ≤5% of its 52-week high?
+- [ ] Today's volume / 50-day average volume ≥ 1.5?
+- [ ] One-year gain outperforming ${benchName}?
 
-### 第四步：定买卖点
-- [ ] 找出 pivot；-8% 止损价（×0.92），**跌破必卖**；涨 20-25% 考虑获利.
+### Step 4: set buy/sell points
+- [ ] Identify the pivot; -8% stop-loss price (×0.92), **sell if it breaks below**; consider taking profit at +20-25%.
 
-### 第五步：仓位控制
-- [ ] 单只股 ≤ 总仓位 25%；同时持有 ≤ 5-8 只.`;
+### Step 5: position sizing
+- [ ] Single stock ≤ 25% of total position; hold ≤ 5-8 names at once.`;
 }
 
 function secRisk(): string {
-  return `## ⚠️ 风险提示
+  return `## ⚠️ Risk disclaimer
 
-1. **本报告不构成投资建议**. CAN SLIM 是历史方法总结, 不保证未来收益.
-2. **数据来自 Yahoo Finance, 可能有延迟或错误**. 重要决策前请用雪球二次确认.
-3. **过去表现不代表未来**. 即使 6 项全过也可能亏钱, 永远做好止损准备.
-4. **散户最大的敌人是自己**: 贪婪 + 恐惧 + 不止损.`;
+1. **This report is not investment advice.** CAN SLIM is a summary of historical methods and does not guarantee future returns.
+2. **Data comes from Yahoo Finance and may be delayed or wrong.** Double-check on a service like Xueqiu before important decisions.
+3. **Past performance does not predict the future.** Even a 6/6 pass can lose money; always be ready to stop out.
+4. **A retail investor's biggest enemy is themselves**: greed + fear + not cutting losses.`;
 }
 
 export async function generateCanslimReport(
@@ -405,7 +405,7 @@ export async function generateCanslimReport(
   const sym = normalizeSymbol(rawSymbol, market);
 
   const [stock, bench, fin] = await Promise.all([fetchDaily(sym), fetchDaily(cfg.benchSym), fetchFin(sym)]);
-  if (stock.close.length < 252) throw new Error(`历史数据不足 252 个交易日（仅 ${stock.close.length} 日，可能是新股）`);
+  if (stock.close.length < 252) throw new Error(`Insufficient history: fewer than 252 trading days (only ${stock.close.length} days; may be newly listed)`);
 
   const bn = bench.close.length - 1;
   const mkt = { close: round2(bench.close[bn]), ma50: round2(ma(bench.close, 50, bn)), ma200: round2(ma(bench.close, 200, bn)) };
@@ -440,19 +440,19 @@ export async function generateCanslimReport(
     _cfg: cfg, _market: mkt, _funda: funda,
   };
 
-  const title = r.name ? `${sym}（${r.name}）` : sym;
+  const title = r.name ? `${sym} (${r.name})` : sym;
   return [
-    `# 📊 ${title} CAN SLIM 投资分析报告`,
-    `**日期**: ${r.date}  ·  **现价**: ${cfg.curPrefix}${price}  ·  **总分**: ${r.score_total}/6\n`,
+    `# 📊 ${title} CAN SLIM Investment Analysis Report`,
+    `**Date**: ${r.date}  ·  **Current price**: ${cfg.curPrefix}${price}  ·  **Total score**: ${r.score_total}/6\n`,
     "---\n",
-    "## 🎯 一句话结论\n\n" + conclusion(r),
+    "## 🎯 One-line conclusion\n\n" + conclusion(r),
     "\n---\n",
-    "## 📚 这份报告是什么？\n\n**CAN SLIM** 是美国传奇投资人 William O'Neil 总结的选股系统, 用 7 个字母代表 7 道考核 (我们覆盖其中 6 项). **过了所有考核的股票, 才是 O'Neil 系统认可的买点**.\n",
+    "## 📚 What is this report?\n\n**CAN SLIM** is a stock-selection system distilled by legendary US investor William O'Neil, using 7 letters to represent 7 tests (we cover 6 of them). **Only a stock that passes every test is an O'Neil-system buy point.**\n",
     "---\n",
     secM(r), "\n---\n", secC(r), "\n---\n", secA(r), "\n---\n",
     secN(r), "\n---\n", secS(r), "\n---\n", secL(r), "\n---\n",
     secChart(r), "\n---\n", secLearning(r), "\n---\n",
     secChecklist(cfg.benchName), "\n---\n", secRisk(),
-    `\n---\n*报告由 AI 链 · 分析工具生成 · 数据源 Yahoo Finance · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC*\n`,
+    `\n---\n*Report generated by the AI Chain · Analysis Tool · data source Yahoo Finance · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC*\n`,
   ].join("\n");
 }

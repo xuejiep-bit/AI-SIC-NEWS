@@ -4,12 +4,12 @@
 // 笔记来自 /api/vidnotes。技术方案：纯 SVG + 原生 JS，零依赖、不引入构建步骤。
 
 export const MAP_HTML = /* html */ `<!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>AI 产业链地图 · AI 链</title>
+<title>AI Supply-Chain Map · AIChain</title>
 <style>
   :root {
     --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;
@@ -90,17 +90,17 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
-  <h1>🗺️ AI 产业链地图</h1>
-  <a class="back" href="/">← 返回资讯首页</a>
+  <a class="logo" href="/" title="Home" aria-label="Home">AI</a>
+  <h1>🗺️ AI Supply-Chain Map</h1>
+  <a class="back" href="/">← Back to news</a>
 </header>
 <div class="wrap">
-  <p class="hint">按「上游 → 中游 → 下游」展开的产业链网络图：连线表示上下游依赖关系。<b>鼠标悬停</b>某环节会高亮它直接相连的上下游，<b>点击</b>查看说明、代表公司与最新动态。（窄屏可左右滑动看全图）</p>
+  <p class="hint">A network map of the supply chain, laid out as Upstream → Midstream → Downstream: lines show upstream–downstream dependencies. <b>Hover</b> over a segment to highlight the segments directly connected to it; <b>click</b> to see the description, key companies and latest news. (On narrow screens, swipe left/right to see the whole map.)</p>
   <div class="legend">
-    <span class="lg"><span class="sw" style="background:var(--up)"></span>上游 · 基础设施层</span>
-    <span class="lg"><span class="sw" style="background:var(--mid)"></span>中游 · 技术与模型层</span>
-    <span class="lg"><span class="sw" style="background:var(--down)"></span>下游 · 应用层</span>
-    <span class="lg">📰 近30天资讯条数　🏢 代表公司数</span>
+    <span class="lg"><span class="sw" style="background:var(--up)"></span>Upstream · Infrastructure</span>
+    <span class="lg"><span class="sw" style="background:var(--mid)"></span>Midstream · Models</span>
+    <span class="lg"><span class="sw" style="background:var(--down)"></span>Downstream · Apps</span>
+    <span class="lg">📰 News in the last 30 days　🏢 Number of key companies</span>
   </div>
   <div id="graphwrap"><div id="canvas"></div></div>
   <div id="detail"></div>
@@ -110,17 +110,17 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
 const W = 1240, H = 790;
 
 const LAYERS = [
-  { key:"upstream",   name:"上游 · 基础设施层", color:"var(--up)" },
-  { key:"midstream",  name:"中游 · 技术与模型层", color:"var(--mid)" },
-  { key:"downstream", name:"下游 · 应用层", color:"var(--down)" },
+  { key:"upstream",   name:"Upstream · Infrastructure", color:"var(--up)" },
+  { key:"midstream",  name:"Midstream · Models", color:"var(--mid)" },
+  { key:"downstream", name:"Downstream · Apps", color:"var(--down)" },
 ];
 const LAYER_COLOR = { upstream:"var(--up)", midstream:"var(--mid)", downstream:"var(--down)" };
 
 // 三层色带（每条色带顶部留出标题行的空间，节点首行从 band.top+46 起）
 const BANDS = [
-  { top:14,  h:332, bg:"rgba(79,140,255,.06)",  bd:"rgba(79,140,255,.22)",  color:"#4f8cff", name:"上游 · 基础设施层" },
-  { top:356, h:120, bg:"rgba(176,124,255,.06)", bd:"rgba(176,124,255,.22)", color:"#b07cff", name:"中游 · 技术与模型层" },
-  { top:486, h:300, bg:"rgba(54,211,153,.06)",  bd:"rgba(54,211,153,.20)",  color:"#36d399", name:"下游 · 应用层" },
+  { top:14,  h:332, bg:"rgba(79,140,255,.06)",  bd:"rgba(79,140,255,.22)",  color:"#4f8cff", name:"Upstream · Infrastructure" },
+  { top:356, h:120, bg:"rgba(176,124,255,.06)", bd:"rgba(176,124,255,.22)", color:"#b07cff", name:"Midstream · Models" },
+  { top:486, h:300, bg:"rgba(54,211,153,.06)",  bd:"rgba(54,211,153,.20)",  color:"#36d399", name:"Downstream · Apps" },
 ];
 
 // 固定坐标（每个节点的左上角像素位置）。布局体现：芯片制造管线（左）+ 数据中心/电力管线（右）→ 汇入模型 → 扇出到下游应用。
@@ -214,7 +214,7 @@ function buildGraph(){
     const coN = (n.companies&&n.companies.length)||0;
     return '<div class="node" data-id="'+n.id+'" style="left:'+p.x+'px;top:'+p.y+'px;border-top-color:'+col+'">'+
       '<div class="nname">'+esc(n.name)+'</div>'+
-      '<div class="nmeta"><span>📰 <b>'+cnt+'</b> 条</span><span>🏢 <b>'+coN+'</b> 家</span></div>'+
+      '<div class="nmeta"><span>📰 <b>'+cnt+'</b></span><span>🏢 <b>'+coN+'</b></span></div>'+
     '</div>';
   }).join("");
   canvas.innerHTML = html;
@@ -278,14 +278,14 @@ function renderDetail(){
   const count = COUNTS[n.category_key]||0;
   const cos = (n.companies&&n.companies.length)
     ? '<div class="chips">'+n.companies.map(c=>'<span class="co">'+esc(c)+'</span>').join("")+'</div>'
-    : '<span class="todo" style="color:var(--dim);font-size:13px">待补充</span>';
+    : '<span class="todo" style="color:var(--dim);font-size:13px">TBD</span>';
   // 科普卡片（给小白看的通俗说明）：what=这是什么 / position=在产业链的位置 / watch=投资看点
   const ex = n.explainer;
   const explain = ex ? '<div class="explain">'+
-      '<div class="etitle">📖 一分钟科普（看完就懂这是干嘛的）</div>'+
-      (ex.what ? '<div class="erow"><span class="lab">这是什么</span>'+esc(ex.what)+'</div>' : '')+
-      (ex.position ? '<div class="erow"><span class="lab">在产业链的位置</span>'+esc(ex.position)+'</div>' : '')+
-      (ex.watch ? '<div class="erow"><span class="lab">投资看点</span>'+esc(ex.watch)+'</div>' : '')+
+      '<div class="etitle">📖 1-minute primer</div>'+
+      (ex.what ? '<div class="erow"><span class="lab">What it is</span>'+esc(ex.what)+'</div>' : '')+
+      (ex.position ? '<div class="erow"><span class="lab">Where it sits</span>'+esc(ex.position)+'</div>' : '')+
+      (ex.watch ? '<div class="erow"><span class="lab">Why it matters</span>'+esc(ex.watch)+'</div>' : '')+
     '</div>' : '';
   // 笔记 = 自动关联（笔记的 segs 含本环节）+ mapconfig.json 里手动配置的链接
   const auto = NOTES.filter(v=>(v.segs||[]).includes(n.category_key) && v.category!=="howto")
@@ -293,16 +293,16 @@ function renderDetail(){
   const links = auto.concat(n.note_links||[]);
   const notes = links.length
     ? links.map(x=>'<a href="'+x.url+'">📝 '+esc(x.title)+'</a>').join("")
-    : '<span class="todo">待写</span>';
+    : '<span class="todo">TBD</span>';
   box.innerHTML =
     '<h3>'+esc(n.name)+'<span class="lay" style="background:'+L.color+'">'+esc(L.name)+'</span></h3>'+
     '<div class="desc">'+esc(n.desc||"")+'</div>'+
     explain+
-    '<div class="sec"><h4>相关公司</h4>'+cos+'</div>'+
-    '<div class="sec"><h4>最新动态</h4>'+
+    '<div class="sec"><h4>Companies</h4>'+cos+'</div>'+
+    '<div class="sec"><h4>Latest news</h4>'+
       '<a class="newslink" href="/?segment='+encodeURIComponent(n.category_key)+'">'+
-      '近 30 天 '+count+' 条相关资讯，点击查看 →</a></div>'+
-    '<div class="sec notes"><h4>我的笔记</h4>'+notes+'</div>';
+      count+' related stories in the last 30 days, click to view →</a></div>'+
+    '<div class="sec notes"><h4>Notes</h4>'+notes+'</div>';
   box.style.display = "block";
   box.scrollIntoView({behavior:"smooth", block:"nearest"});
 }
@@ -320,7 +320,7 @@ async function init(){
     buildGraph();
     window.addEventListener("resize", ()=>requestAnimationFrame(drawEdges));
   }catch(e){
-    $("#canvas").innerHTML = '<p class="hint">加载失败：'+esc(String(e))+'</p>';
+    $("#canvas").innerHTML = '<p class="hint">Failed to load: '+esc(String(e))+'</p>';
   }
 }
 init();

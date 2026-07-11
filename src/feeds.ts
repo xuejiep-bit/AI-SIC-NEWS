@@ -48,39 +48,18 @@ export const FEEDS: Feed[] = [
   { name: "AWS Machine Learning", url: "https://aws.amazon.com/blogs/machine-learning/feed/", lang: "en" },
   { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml", lang: "en" },
 
-  // ── 中文 · 综合科技 / 创投 ──────────────────────────
-  { name: "36氪", url: "https://www.36kr.com/feed", lang: "zh" },
-  { name: "机器之心", url: "https://www.jiqizhixin.com/rss", lang: "zh" },
-  { name: "钛媒体", url: "https://www.tmtpost.com/rss.xml", lang: "zh" },
-  { name: "InfoQ 中文", url: "https://www.infoq.cn/feed", lang: "zh" },
-  { name: "IT之家", url: "https://www.ithome.com/rss/", lang: "zh" },
-  { name: "虎嗅网", url: "https://www.huxiu.com/rss/0.xml", lang: "zh" },
-  { name: "雷峰网", url: "https://www.leiphone.com/feed", lang: "zh" },
-  { name: "cnBeta", url: "https://www.cnbeta.com.tw/backend.php", lang: "zh" },
-
   // ── 海外财经主流媒体（经 Google News 站内检索，只筛 AI 产业链相关）─────
   // 这些站点多无可靠官方 RSS / 设有付费墙；我们只展示标题/摘要/链接，正文跳原站。
-  GNEWS("路透 Reuters", "en", "reuters.com"),
-  GNEWS("彭博 Bloomberg", "en", "bloomberg.com"),
+  GNEWS("Reuters", "en", "reuters.com"),
+  GNEWS("Bloomberg", "en", "bloomberg.com"),
   GNEWS("CNBC", "en", "cnbc.com"),
-  GNEWS("金融时报 FT", "en", "ft.com"),
-  GNEWS("华尔街日报 WSJ", "en", "wsj.com"),
+  GNEWS("Financial Times", "en", "ft.com"),
+  GNEWS("Wall Street Journal", "en", "wsj.com"),
   GNEWS("MarketWatch", "en", "marketwatch.com"),
-  GNEWS("Yahoo 财经", "en", "finance.yahoo.com"),
+  GNEWS("Yahoo Finance", "en", "finance.yahoo.com"),
   GNEWS("The Information", "en", "theinformation.com"),
   GNEWS("Barron's", "en", "barrons.com"),
   GNEWS("Seeking Alpha", "en", "seekingalpha.com"),
-  GNEWS("路透中文", "zh", "reuters.com"),
-
-  // ── 国内财经主流媒体（经 Google News 站内检索，只筛 AI 产业链相关）─────
-  GNEWS("东方财富", "zh", "eastmoney.com"),
-  GNEWS("同花顺", "zh", "10jqka.com.cn"),
-  GNEWS("雪球", "zh", "xueqiu.com"),
-  GNEWS("财联社", "zh", "cls.cn"),
-  GNEWS("华尔街见闻", "zh", "wallstreetcn.com"),
-  GNEWS("第一财经", "zh", "yicai.com"),
-  GNEWS("格隆汇", "zh", "gelonghui.com"),
-  GNEWS("新浪财经", "zh", "finance.sina.com.cn"),
 ];
 
 // YouTube · AI 领域红人频道（人工精选，均为 100 万+ 订阅）。

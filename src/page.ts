@@ -1,21 +1,21 @@
-// 前端单页（内嵌于 Worker 返回）。原生 JS，无需构建。全站统一中文界面。
+// Front-end single page (inlined into the Worker response). Vanilla JS, no build step. English-only UI.
 
 export const PAGE_HTML = /* html */ `<!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="google-site-verification" content="kfdl_r02WiIyzoQIr02NPLqPGhe6lDbSo47Cj2QI7cE" />
 <meta name="google-site-verification" content="1WLhkGYgNzFlGW6WdOoCBg7fkv5yIkw_9UJzgxGsgWo" />
 <link rel="canonical" href="https://ai.vid2quiz.com/" />
-<meta name="description" content="AI 链 · AIChain —— 面向中文读者的全球 AI 产业链情报站：上游算力芯片到下游应用全链路资讯、投资视频解读、产业链地图与价值分析工具。" />
+<meta name="description" content="AIChain — real-time intelligence on the global AI supply chain: news from upstream compute chips to downstream apps, video notes, an industry-chain map, and value-analysis tools." />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="AI 链 · AIChain" />
-<meta property="og:title" content="AI 链 · AIChain — 全球 AI 产业链情报站" />
-<meta property="og:description" content="上游算力芯片到下游应用全链路资讯、投资视频解读、产业链地图与价值分析工具。" />
+<meta property="og:site_name" content="AIChain" />
+<meta property="og:title" content="AIChain — Global AI Supply-Chain Intelligence" />
+<meta property="og:description" content="News from upstream compute chips to downstream apps, video notes, an industry-chain map, and value-analysis tools." />
 <meta property="og:url" content="https://ai.vid2quiz.com/" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>AI 链 · AIChain — AI 产业链实时资讯</title>
+<title>AIChain — Real-time AI Supply-Chain News</title>
 <style>
   :root {
     --bg: #0b0e14; --panel: #131826; --panel2: #1a2030; --line: #232a3d;
@@ -151,30 +151,29 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <button class="btn" id="navToggle" title="折叠 / 展开侧栏" aria-label="折叠侧栏">«</button>
-  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
+  <button class="btn" id="navToggle" title="Collapse / expand sidebar" aria-label="Collapse sidebar">«</button>
+  <a class="logo" href="/" title="Home" aria-label="Home">AI</a>
   <div>
-    <h1 data-i18n="title">AI 链</h1>
+    <h1 data-i18n="title">AIChain</h1>
   </div>
   <div class="spacer"></div>
-  <a class="btn" href="/tools" style="text-decoration:none">🧰 分析工具</a>
-  <button class="btn" id="earnBtn">📊 公司财报</button>
-  <button class="btn" id="refreshBtn" data-i18n="refresh">刷新数据</button>
+  <a class="btn" href="/tools" style="text-decoration:none">🧰 Tools</a>
+  <button class="btn" id="earnBtn">📊 Earnings</button>
+  <button class="btn" id="refreshBtn" data-i18n="refresh">Refresh</button>
 </header>
 <div class="wrap">
   <aside id="nav"></aside>
   <main>
-    <!-- 顶部主推区：深度笔记（默认首页视图才显示） -->
+    <!-- Top spotlight: video notes (shown only on the default home view) -->
     <div id="hero" style="display:none"></div>
-    <!-- 产业链地图入口横幅 -->
+    <!-- Supply-chain map entry banner -->
     <a id="mapban" href="/map" style="display:none">
       <span class="mi">🗺️</span>
-      <span><b>AI 产业链地图</b><br/><span class="ms">上游基础设施 → 中游模型 → 下游应用，一图看懂全链路，点击任一环节看公司与最新动态</span></span>
-      <span class="spacer"></span><span class="go">进入 →</span>
+      <span><b>AI Supply-Chain Map</b><br/><span class="ms">Upstream infrastructure → midstream models → downstream apps. See the whole chain at a glance; click any node for companies and the latest news.</span></span>
+      <span class="spacer"></span><span class="go">Open →</span>
     </a>
     <div class="toolbar">
-      <input type="search" id="q" data-i18n-ph="search" placeholder="搜索关键词…" />
-      <div class="seg" id="regionSeg"></div>
+      <input type="search" id="q" data-i18n-ph="search" placeholder="Search…" />
       <div class="meta" id="status"></div>
       <div class="spacer"></div>
       <div class="meta" id="count"></div>
@@ -182,17 +181,17 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
     <div class="cards" id="cards"></div>
     <div id="earnings" style="display:none"></div>
     <div class="empty" id="empty" style="display:none" data-i18n="empty">
-      暂无数据。点击右上角「刷新数据」拉取最新资讯。
+      No data yet. Click ‘Refresh’ (top-right) to pull the latest.
     </div>
   </main>
 </div>
 <script>
-// 全站统一中文文案（语言/版本切换已移除）。
+// English-only UI copy (language/version switch removed).
 const I18N = {
-  zh: { title:"AI 链",
-    refresh:"刷新数据", search:"搜索关键词…", empty:"暂无数据。点击右上角「刷新数据」拉取最新资讯。",
-    all:"全部", loading:"加载中…", refreshing:"正在抓取…", count:n=>n+" 条资讯",
-    earnings:"📊 公司财报", news:"📰 资讯", searchCo:"搜索公司 / 代码…", viewFin:"查看财报 →", market:"市场", noCo:"无匹配公司" },
+  en: { title:"AIChain",
+    refresh:"Refresh", search:"Search…", empty:"No data yet. Click ‘Refresh’ (top-right) to pull the latest.",
+    all:"All", loading:"Loading…", refreshing:"Fetching…", count:n=>n+" items",
+    earnings:"📊 Earnings", news:"📰 News", searchCo:"Search company / ticker…", viewFin:"Financials →", market:"Market", noCo:"No matching company" },
 };
 const TAX = [
   { key:"upstream", color:"var(--up)", zh:"上游 · 基础设施层", en:"Upstream · Infrastructure", segs:[
@@ -301,8 +300,8 @@ const MKT = [
   {k:"a",  zh:"🇨🇳 A股", en:"🇨🇳 A-Share"},
 ];
 
-const lang = "zh";  // 全站统一中文（语言切换已移除）
-// sel.video：false 或具体视频 layer（"video" = AI 视频，"video_invest" = 投资视频）
+const lang = "en";  // English-only (language switch removed)
+// sel.video: false or a specific video layer ("video" = AI Videos, "video_invest" = Investing Videos)
 let sel = { layer:"all", segment:"all", invest:false, video:false, notes:false, picks:false };
 let picksMin = null; // 今日精选阈值（null=用后端默认）
 let regionFilter = "all"; // 资讯流地区筛选：all | cn(国内) | global(国际)，与产业链分类叠加
@@ -313,8 +312,8 @@ let videoCount = 0;
 let vinvestCount = 0;
 let noteList = [];   // 投资视频解读（/api/vidnotes，人工精选内容；为空时隐藏栏目）
 let noteCat = "all"; // 大佬观点分类筛选：all | invest(投资观点) | howto(AI 实操)
-// 笔记分类标签；未标 category 的默认按「投资观点」处理
-const NOTE_CATS = { invest:"💡 投资观点", howto:"🛠️ AI 实操" };
+// Note category labels; entries without a category default to "Market Views"
+const NOTE_CATS = { invest:"💡 Market Views", howto:"🛠️ AI How-To" };
 const noteCatOf = n => (n.category==="howto" ? "howto" : "invest");
 let view = "news";       // "news" | "earnings"
 let earnMkt = "all";     // 财报视图的市场筛选
@@ -344,7 +343,7 @@ function applyI18n(){
   if(view==="earnings") $("#q").placeholder = t("searchCo");
 }
 
-// 前沿大模型实验室官方博客（一手信源）。要增删/改链接，改这里即可。
+// Frontier-lab official blogs (primary sources). Add/remove/edit links here.
 const BLOGS = {
   closed: [
     { name: "OpenAI · ChatGPT", url: "https://openai.com/news/" },
@@ -356,10 +355,10 @@ const BLOGS = {
   open: [
     { name: "Meta AI · Llama", url: "https://ai.meta.com/blog/" },
     { name: "Mistral AI", url: "https://mistral.ai/news/" },
-    { name: "DeepSeek 深度求索", url: "https://api-docs.deepseek.com/news" },
-    { name: "通义千问 Qwen", url: "https://qwenlm.github.io/blog/" },
-    { name: "智谱 GLM", url: "https://z.ai/blog" },
-    { name: "Kimi · 月之暗面", url: "https://www.moonshot.cn/" },
+    { name: "DeepSeek", url: "https://api-docs.deepseek.com/news" },
+    { name: "Qwen (Alibaba)", url: "https://qwenlm.github.io/blog/" },
+    { name: "Zhipu GLM", url: "https://z.ai/blog" },
+    { name: "Kimi (Moonshot)", url: "https://www.moonshot.cn/" },
   ],
 };
 
@@ -367,20 +366,20 @@ function renderNav(){
   const nav = $("#nav");
   let html = '<div class="group">';
   html += '<div class="navitem '+(sel.picks?'on':'')+'" data-picks="1">'+
-    '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>⭐ 今日精选</span></span></div>';
+    '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>⭐ Today\\'s Picks</span></span></div>';
   html += navItem("all","all",t("all"), totalCount(), null, false);
-  const invLabel = lang==="zh" ? "💰 投资/融资" : "💰 Investment";
+  const invLabel = "💰 Funding & Deals";
   html += '<div class="navitem '+(sel.invest?'on':'')+'" data-invest="1">'+
     '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+invLabel+'</span></span>'+
     '<span class="n">'+(investCount||0)+'</span></div>';
   html += '<div class="navitem '+(sel.video==="video"?'on':'')+'" data-video="video">'+
-    '<span class="label"><span class="dot" style="background:var(--video)"></span><span>📺 AI 视频</span></span>'+
+    '<span class="label"><span class="dot" style="background:var(--video)"></span><span>📺 AI Videos</span></span>'+
     '<span class="n">'+(videoCount||0)+'</span></div>';
   html += '<div class="navitem '+(sel.video==="video_invest"?'on':'')+'" data-video="video_invest">'+
-    '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>📈 投资视频</span></span>'+
+    '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>📈 Investing Videos</span></span>'+
     '<span class="n">'+(vinvestCount||0)+'</span></div>';
-  if(noteList.length){ // 投资视频解读：人工精选内容，有内容才显示
-    const ntLabel = "🎬 投资视频解读";
+  if(noteList.length){ // Video Notes: curated content, shown only when non-empty
+    const ntLabel = "🎬 Video Notes";
     html += '<div class="navitem '+(sel.notes?'on':'')+'" data-notes="1">'+
       '<span class="label"><span class="dot" style="background:var(--invest)"></span><span>'+ntLabel+'</span></span>'+
       '<span class="n">'+noteList.length+'</span></div>';
@@ -395,14 +394,14 @@ function renderNav(){
     }
     html += '</div>';
   }
-  // 官方博客（前沿大模型实验室一手信源，外链新标签页打开）
+  // Official blogs (frontier-lab primary sources; open in a new tab)
   html += '<div class="group">';
-  html += '<div class="navhdr">🔗 官方博客</div>';
+  html += '<div class="navhdr">🔗 Official Blogs</div>';
   const blogGroup = (sub, arr) => '<div class="blogsub">'+sub+'</div>' + arr.map(b=>
     '<a class="bloglink" href="'+b.url+'" target="_blank" rel="noopener noreferrer">'+
     '<span>'+esc(b.name)+'</span><span class="ext">↗</span></a>').join("");
-  html += blogGroup("闭源前沿", BLOGS.closed);
-  html += blogGroup("开源 / 国产", BLOGS.open);
+  html += blogGroup("Frontier (closed)", BLOGS.closed);
+  html += blogGroup("Open source", BLOGS.open);
   html += '</div>';
   nav.innerHTML = html;
   nav.querySelectorAll(".navitem").forEach(el=>{
@@ -437,10 +436,10 @@ function renderHome(){
   if(home && noteList.length) renderHero();
 }
 function renderHero(){
-  // 首页热门区只放「投资观点」（AI 实操/工具教程归到笔记列表的对应标签下）
-  const top = noteList.filter(n=>noteCatOf(n)==="invest").slice(0,3); // 最新 3 篇
+  // Home spotlight shows only "Market Views" (AI How-To/tutorials live under their tab in the notes list)
+  const top = noteList.filter(n=>noteCatOf(n)==="invest").slice(0,3); // latest 3
   if(!top.length){ $("#hero").style.display="none"; return; }
-  let html = '<div class="hh"><h2>🎙️ 大佬观点</h2><span class="more" id="allNotes">查看全部 →</span></div>';
+  let html = '<div class="hh"><h2>🎙️ The Big Picture</h2><span class="more" id="allNotes">View all →</span></div>';
   html += '<div class="hcards">'+top.map(n=>{
     const ex = (n.takeaways&&n.takeaways[0]) || (n.summary||"").split("\\n")[0] || "";
     return '<a class="hcard" href="/note?id='+encodeURIComponent(n.id)+'">'+
@@ -452,16 +451,6 @@ function renderHero(){
   // 「查看全部笔记」进入站内笔记列表；单张卡片进入独立笔记页（上面的 <a>）
   $("#allNotes").onclick = ()=>{ sel={layer:"all",segment:"all",invest:false,video:false,notes:true,picks:false}; renderNav(); load(); };
 }
-// 地区筛选按钮（全部 / 国内 / 国际）
-function renderRegionSeg(){
-  const opts = [["all","全部"],["cn","国内"],["global","国际"]];
-  $("#regionSeg").innerHTML = opts.map(([k,label])=>
-    '<button class="btn '+(regionFilter===k?'on':'')+'" data-r="'+k+'">'+label+'</button>').join("");
-  $("#regionSeg").querySelectorAll(".btn").forEach(el=>{
-    el.onclick = ()=>{ regionFilter = el.dataset.r; renderRegionSeg(); loadStats(); load(); };
-  });
-}
-
 async function loadStats(){
   try{
     const p = regionFilter!=="all" ? "?region="+regionFilter : "";
@@ -495,8 +484,8 @@ async function load(){
     const r = await fetch("/api/news?"+p.toString());
     const data = await r.json();
     if(!Array.isArray(data)){
-      const msg = (data && data.error) ? data.error : "数据加载失败";
-      $("#status").textContent = (lang==="zh"?"出错: ":"Error: ")+msg;
+      const msg = (data && data.error) ? data.error : "Failed to load data";
+      $("#status").textContent = "Error: "+msg;
       renderCards([]); $("#count").textContent = "";
       return;
     }
@@ -521,25 +510,22 @@ function renderCards(items){
   box.innerHTML = items.map(a=>{
     let segLabel, color;
     if(a.layer==="video"){
-      segLabel = lang==="zh" ? "📺 视频" : "📺 Video"; color = "var(--video)";
+      segLabel = "📺 Video"; color = "var(--video)";
     } else if(a.layer==="video_invest"){
-      segLabel = lang==="zh" ? "📈 投资视频" : "📈 Invest Video"; color = "var(--invest)";
+      segLabel = "📈 Invest Video"; color = "var(--invest)";
     } else {
       const seg = SEGLABEL[a.segment];
-      segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : (lang==="zh"?"行业动态":"Industry");
+      segLabel = seg ? seg.en : "Industry";
       color = COLOR[a.layer]||"var(--other)";
     }
-    // 中英资讯合并展示：中文源显示中文，英文源直接显示英文原文（不做翻译）。
     const title = a.title_zh || a.title;
     const summ = a.summary_zh || a.summary;
-    const regionTag = a.region==="cn" ? "国内" : (a.region==="global" ? "国际" : "");
     return '<div class="card">'+
       '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a>'+
       (summ?'<div class="s">'+esc(summ)+'</div>':'')+
       '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+
       '<span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span>'+
-      (regionTag?'<span>·</span><span>'+regionTag+'</span>':'')+
-      '<a class="srch" href="https://www.bing.com/search?q='+encodeURIComponent(title)+'" target="_blank" rel="noopener" title="原文打不开？用标题搜索这条新闻">🔍 搜标题</a>'+
+      '<a class="srch" href="https://www.bing.com/search?q='+encodeURIComponent(title)+'" target="_blank" rel="noopener" title="Original not opening? Search this headline">🔍 Search title</a>'+
       '</div>'+
       '</div>';
   }).join("");
@@ -561,39 +547,37 @@ async function renderPicks(){
     const items = (d && d.items) || [];
     const thr = (d && d.threshold) || 7; picksMin = thr;
     $("#status").textContent = "";
-    $("#count").textContent = lang==="zh" ? (items.length+" 条") : (items.length+" picks");
-    // 用大白话的三档「看多重要的」代替「价值阈值≥N」，每档背后对应一个分数门槛
+    $("#count").textContent = items.length+" picks";
+    // Plain-language three levels of "how important" instead of "value threshold ≥N"; each maps to a score cutoff
     const LEVELS = [
-      { min:6, name:"多看一些", hint:"宽松：连信号较弱的也显示，数量最多" },
-      { min:7, name:"刚刚好",   hint:"推荐：质量和数量兼顾" },
-      { min:8, name:"只看最重磅", hint:"严格：只显示最确定的大事，数量最少" },
+      { min:6, name:"More", hint:"Loose: shows weaker signals too; the most items" },
+      { min:7, name:"Balanced", hint:"Recommended: balances quality and volume" },
+      { min:8, name:"Top only", hint:"Strict: only the most certain, high-impact stories; fewest items" },
     ];
     const cur = thr<=6 ? 6 : (thr>=8 ? 8 : 7);
     const opts = LEVELS.map(l=>
       '<button class="pbtn'+(cur===l.min?' on':'')+'" data-min="'+l.min+'" title="'+l.hint+'">'+l.name+'</button>').join("");
-    const bar = '<div class="pickbar"><span class="pl">只看多重要的：</span>'+opts+
-      '<span class="ph">往「最重磅」收=更少但更值得看，往「多看一些」放=数量更多。'+
-      '每条左边的<b>数字</b>是这条消息的<b>重要度评分</b>（满分 10，越高越可能是供需/技术拐点或重大事件）。</span></div>';
+    const bar = '<div class="pickbar"><span class="pl">Filter by importance:</span>'+opts+
+      '<span class="ph">Toward “Top only” = fewer but more worth reading; toward “More” = higher volume. '+
+      'The <b>number</b> on the left of each item is its <b>importance score</b> (out of 10 — higher means more likely a supply/tech inflection or a major event).</span></div>';
     const cards = items.map(a=>{
       const seg = SEGLABEL[a.segment];
-      const segLabel = seg ? (lang==="zh"?seg.zh:seg.en) : "行业动态";
+      const segLabel = seg ? seg.en : "Industry";
       const color = COLOR[a.layer]||"var(--other)";
       const title = a.title_zh || a.title;
       const sc = a.value_score||0;
       const scClass = sc>=8 ? "hi" : (sc>=7 ? "mid" : "lo");
-      const regionTag = a.region==="cn" ? "国内" : (a.region==="global" ? "国际" : "");
       return '<div class="card pick">'+
-        '<div class="pickhead"><span class="pickscore '+scClass+'" title="重要度评分 '+sc+'/10：越高越可能是重要的拐点或事件">'+sc+'</span>'+
+        '<div class="pickhead"><span class="pickscore '+scClass+'" title="Importance score '+sc+'/10: higher = more likely an important inflection or event">'+sc+'</span>'+
           '<a class="t" href="'+a.link+'" target="_blank" rel="noopener">'+esc(title)+'</a></div>'+
         (a.value_reason?'<div class="pickreason">🎯 '+esc(a.value_reason)+'</div>':'')+
         '<div class="tags"><span class="chip" style="background:'+color+'">'+esc(segLabel)+'</span>'+
         '<span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span>'+
-        (regionTag?'<span>·</span><span>'+regionTag+'</span>':'')+
-        '<a class="srch" href="https://www.bing.com/search?q='+encodeURIComponent(title)+'" target="_blank" rel="noopener" title="原文打不开？用标题搜索这条新闻">🔍 搜标题</a>'+
+        '<a class="srch" href="https://www.bing.com/search?q='+encodeURIComponent(title)+'" target="_blank" rel="noopener" title="Original not opening? Search this headline">🔍 Search title</a>'+
         '</div></div>';
     }).join("");
     box.innerHTML = bar + (items.length? cards :
-      '<div class="empty">这个阈值下近 48 小时暂无精选。试试调低阈值，或等下一次抓取累积更多资讯。</div>');
+      '<div class="empty">No picks in the last 48h at this level. Try a lower level, or wait for the next fetch to bring in more.</div>');
     box.querySelectorAll(".pbtn").forEach(b=>{
       b.onclick = ()=>{ picksMin = parseInt(b.dataset.min,10); renderPicks(); };
     });
@@ -622,7 +606,7 @@ function renderNotes(){
   // 分类标签栏（带每类条数）
   const nInv = noteList.filter(n=>noteCatOf(n)==="invest").length;
   const nHow = noteList.filter(n=>noteCatOf(n)==="howto").length;
-  const tabs = [["all","全部",noteList.length],["invest",NOTE_CATS.invest,nInv],["howto",NOTE_CATS.howto,nHow]];
+  const tabs = [["all","All",noteList.length],["invest",NOTE_CATS.invest,nInv],["howto",NOTE_CATS.howto,nHow]];
   const tabBar = '<div class="ntabs">'+tabs.map(([k,label,n])=>
     '<button class="ntab'+(noteCat===k?' on':'')+'" data-cat="'+k+'">'+esc(label)+' <span class="nn">'+n+'</span></button>').join("")+'</div>';
   // 列表只作索引：标题 + 标签 + 首条要点预览，点击进入独立笔记页放大阅读
@@ -636,7 +620,7 @@ function renderNotes(){
       '<div class="tags">'+catChip+tks+'<span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
       '<span>·</span><span>'+esc(n.videoTitle)+'</span></div>'+
       '<div class="s">'+esc(ex)+'</div>'+
-      '<div class="readmore">阅读全文 →</div>'+
+      '<div class="readmore">Read more →</div>'+
       '</a>';
   }).join("");
   box.querySelectorAll(".ntab").forEach(b=>{ b.onclick = ()=>{ noteCat = b.dataset.cat; renderNotes(); }; });
@@ -653,7 +637,6 @@ function setView(v){
   view = v;
   const earn = v==="earnings";
   if(earn){ $("#hero").style.display="none"; $("#mapban").style.display="none"; }
-  $("#regionSeg").style.display = earn ? "none" : "flex";
   $("#earnings").style.display = earn ? "block" : "none";
   $("#cards").style.display = earn ? "none" : "";
   if(earn) $("#empty").style.display = "none";
@@ -687,14 +670,14 @@ function earnNavItem(k,label,n){
 // 美股给「官方文件(SEC EDGAR 原始申报)」+「财报数据(stockanalysis)」；A股同花顺 F10；港股雪球。
 function finLinks(c){
   if(c.mkt==="a") return [
-    {label:"查看财报 →", url:"https://basic.10jqka.com.cn/"+c.tk+"/finance.html"},
+    {label:"Financials →", url:"https://basic.10jqka.com.cn/"+c.tk+"/finance.html"},
   ];
   if(c.mkt==="us") return [
-    {label:"官方文件 →", url:"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker="+c.tk+"&type=&dateb=&owner=include&count=40"},
-    {label:"财报数据 →", url:"https://stockanalysis.com/stocks/"+c.tk+"/financials/"},
+    {label:"SEC filings →", url:"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker="+c.tk+"&type=&dateb=&owner=include&count=40"},
+    {label:"Financial data →", url:"https://stockanalysis.com/stocks/"+c.tk+"/financials/"},
   ];
   return [
-    {label:"查看财报 →", url:"https://xueqiu.com/S/"+c.tk},
+    {label:"Financials →", url:"https://xueqiu.com/S/"+c.tk},
   ];
 }
 function renderEarnings(){
@@ -743,7 +726,7 @@ $("#refreshBtn").onclick = async ()=>{
 })();
 
 const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
-applyI18n(); renderRegionSeg(); loadStats(); loadNotes(); load();
+applyI18n(); loadStats(); loadNotes(); load();
 </script>
 </body>
 </html>`;

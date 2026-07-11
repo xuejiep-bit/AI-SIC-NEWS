@@ -2,12 +2,12 @@
 // 阶段1: Graham 已上线；CAN SLIM / 海龟 为占位（即将上线）。
 
 export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>分析工具 · AI 链</title>
+<title>Analysis Tools · AIChain</title>
 <style>
   :root { --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;
     --txt:#e6e9f0; --dim:#8a93a8; --acc:#4f8cff; --acc2:#36d399; --invest:#f5b301; }
@@ -55,30 +55,30 @@ export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
-  <h1>📊 投资分析工具</h1>
-  <a class="back" href="/">← 返回资讯首页</a>
+  <a class="logo" href="/" title="Home" aria-label="Home">AI</a>
+  <h1>📊 Analysis Tools</h1>
+  <a class="back" href="/">← Back to news</a>
 </header>
 <div class="wrap">
   <div class="formbox">
-    <input id="sym" placeholder="股票代码, 如 KO 或 00700" />
+    <input id="sym" placeholder="Ticker, e.g. KO or 00700" />
     <select id="market">
-      <option value="auto">自动识别市场</option>
-      <option value="us">🇺🇸 美股</option>
-      <option value="hk">🇭🇰 港股</option>
+      <option value="auto">Auto-detect market</option>
+      <option value="us">🇺🇸 US</option>
+      <option value="hk">🇭🇰 Hong Kong</option>
     </select>
     <select id="strategy">
-      <option value="graham">Graham 价值投资</option>
-      <option value="canslim">CAN SLIM 成长动量</option>
-      <option value="turtle">海龟交易（趋势跟随）</option>
+      <option value="graham">Graham (Value)</option>
+      <option value="canslim">CAN SLIM (Growth Momentum)</option>
+      <option value="turtle">Turtle (Trend Following)</option>
     </select>
-    <input id="account" type="number" min="1" placeholder="账户资金(可选)" style="display:none;width:150px" />
-    <button class="btn" id="go">生成报告</button>
+    <input id="account" type="number" min="1" placeholder="Account size (optional)" style="display:none;width:150px" />
+    <button class="btn" id="go">Generate report</button>
   </div>
   <div class="hint">
-    输入一只<b>美股</b>(字母代码, 如 KO / JNJ / AAPL)或<b>港股</b>(数字代码, 如 00700 / 00939)股票,
-    选择分析策略, 生成一份"看完能学会"的教学式分析报告. 同一只股票当天的报告会缓存, 秒出.
-    <br/>数据源: Yahoo Finance · 本工具不构成投资建议.
+    Enter a <b>US stock</b> (letter ticker, e.g. KO / JNJ / AAPL) or <b>Hong Kong stock</b> (numeric code, e.g. 00700 / 00939),
+    choose an analysis strategy, and generate a teaching-style report you can actually learn from. Reports for the same stock are cached for the day and returned instantly.
+    <br/>Data: Yahoo Finance · Not investment advice.
   </div>
   <div id="status"></div>
   <div id="report"></div>
@@ -144,12 +144,12 @@ function renderMd(md){
 let lastMd = "", lastSym = "";
 async function run(){
   const sym = $("#sym").value.trim();
-  if(!sym){ $("#status").textContent = "请输入股票代码"; return; }
+  if(!sym){ $("#status").textContent = "Please enter a ticker"; return; }
   const market = $("#market").value;
   const strategy = $("#strategy").value;
   $("#go").disabled = true;
   $("#report").style.display = "none";
-  $("#status").textContent = "报告生成中… 首次生成约 5-10 秒, 当天已生成过则秒出.";
+  $("#status").textContent = "Generating report… First run takes about 5-10 seconds; instant if already generated today.";
   try{
     const p = new URLSearchParams({ symbol: sym, strategy });
     if(market !== "auto") p.set("market", market);
@@ -159,7 +159,7 @@ async function run(){
     let d = await r.json();
     // CAN SLIM 首次需先算 RS 基准池（单独一次请求），返回 preparing 时自动重试一次
     if(d && d.preparing){
-      $("#status").textContent = "正在准备 RS 基准数据（首次稍慢）…";
+      $("#status").textContent = "Preparing RS benchmark data (first run is a bit slower)…";
       await new Promise(res=>setTimeout(res, 1500));
       r = await fetch("/api/report?" + p.toString());
       d = await r.json();
@@ -167,8 +167,8 @@ async function run(){
     if(d.error){ $("#status").textContent = "❌ " + d.error; }
     else {
       lastMd = d.md; lastSym = d.symbol || sym;
-      $("#status").textContent = d.cached ? "✓ 当天缓存命中, 即时返回" : "✓ 报告生成完成";
-      $("#report").innerHTML = '<span class="dl" id="dlmd">⬇ 下载 Markdown</span>' + renderMd(d.md);
+      $("#status").textContent = d.cached ? "✓ Cache hit for today, returned instantly" : "✓ Report generated";
+      $("#report").innerHTML = '<span class="dl" id="dlmd">⬇ Download Markdown</span>' + renderMd(d.md);
       $("#report").style.display = "block";
       $("#dlmd").onclick = ()=>{
         const blob = new Blob([lastMd], { type:"text/markdown" });
@@ -178,7 +178,7 @@ async function run(){
         a.click();
       };
     }
-  }catch(e){ $("#status").textContent = "❌ 请求失败: " + e; }
+  }catch(e){ $("#status").textContent = "❌ Request failed: " + e; }
   $("#go").disabled = false;
 }
 $("#go").onclick = run;

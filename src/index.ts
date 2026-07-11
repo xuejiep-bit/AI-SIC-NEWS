@@ -401,9 +401,9 @@ export default {
         // 生成单股分析报告。当天缓存：同一 策略+代码 一天只真正生成一次。
         const rawSym = (url.searchParams.get("symbol") || "").trim();
         const strategy = url.searchParams.get("strategy") || "graham";
-        if (!rawSym) return json({ error: "缺少股票代码" }, 400);
-        if (!/^[A-Za-z0-9.\-]{1,12}$/.test(rawSym)) return json({ error: "代码格式不正确" }, 400);
-        if (strategy !== "graham" && strategy !== "canslim" && strategy !== "turtle") return json({ error: "该策略即将上线" }, 400);
+        if (!rawSym) return json({ error: "Missing ticker symbol" }, 400);
+        if (!/^[A-Za-z0-9.\-]{1,12}$/.test(rawSym)) return json({ error: "Invalid ticker format" }, 400);
+        if (strategy !== "graham" && strategy !== "canslim" && strategy !== "turtle") return json({ error: "This strategy is coming soon" }, 400);
         const mParam = url.searchParams.get("market");
         const market: "us" | "hk" = mParam === "hk" || (mParam !== "us" && /^\d+$/.test(rawSym.replace(/\.HK$/i, ""))) ? "hk" : "us";
         // 海龟可选自定义账户资金（默认沿用脚本的 US$510 / HK$4000）
@@ -431,7 +431,7 @@ export default {
               const returns = await computeUniverseReturns(market);
               await env.DB.prepare(`INSERT OR REPLACE INTO reports (k, md, created_at) VALUES (?, ?, ?)`)
                 .bind(uniKey, JSON.stringify(returns), Date.now()).run();
-              return json({ ok: false, preparing: true, msg: "RS 基准数据已就绪，正在生成报告…" });
+              return json({ ok: false, preparing: true, msg: "RS benchmark ready — generating report…" });
             }
             md = await generateCanslimReport(rawSym, market, JSON.parse(uniHit.md));
           }
@@ -439,7 +439,7 @@ export default {
             .bind(key, md, Date.now()).run();
           return json({ ok: true, cached: false, symbol: sym, md });
         } catch (err) {
-          return json({ error: `报告生成失败: ${String(err instanceof Error ? err.message : err).slice(0, 200)}` }, 502);
+          return json({ error: `Report generation failed: ${String(err instanceof Error ? err.message : err).slice(0, 200)}` }, 502);
         }
       }
       if (path === "/favicon.svg" || path === "/favicon.ico") {
@@ -457,11 +457,11 @@ export default {
       // ── 模块5：邮件订阅（仅收集入库，不自动发信）──
       if (path === "/api/subscribe" && request.method === "POST") {
         let body: { email?: string; source?: string };
-        try { body = await request.json(); } catch { return json({ error: "请求格式错误" }, 400); }
+        try { body = await request.json(); } catch { return json({ error: "Bad request format" }, 400); }
         const email = String(body.email || "").trim().toLowerCase();
         // 基础格式校验 + 长度上限；重复提交由主键 INSERT OR IGNORE 去重
         if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-          return json({ error: "邮箱格式不正确" }, 400);
+          return json({ error: "Invalid email format" }, 400);
         }
         const source = String(body.source || "").slice(0, 50);
         const res = await env.DB.prepare(
@@ -472,7 +472,7 @@ export default {
       if (path === "/api/subscribers.csv") {
         // 订阅邮箱导出（CSV），需 EXPORT_TOKEN 密钥；未配置密钥时整体关闭，避免邮箱泄露。
         const token = env.EXPORT_TOKEN || "";
-        if (!token) return json({ error: "导出未启用：请先用 wrangler secret put EXPORT_TOKEN 设置密钥" }, 403);
+        if (!token) return json({ error: "Export disabled: set EXPORT_TOKEN via wrangler secret put first" }, 403);
         const provided = url.searchParams.get("token") || "";
         if (provided !== token) return json({ error: "unauthorized" }, 401);
         const { results } = await env.DB.prepare(

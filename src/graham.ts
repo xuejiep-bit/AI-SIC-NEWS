@@ -1,30 +1,30 @@
-// Graham 价值投资分析报告（《聪明的投资者》第 14 章「防守型投资者 7 条铁律」）。
-// 移植自用户的 graham_report.py（美股）/ graham_report_hk.py（港股），评分逻辑与报告文案保持一致；
-// 数据源由 akshare/efinance（东方财富）改为 Yahoo Finance（海外可直连，覆盖美股+港股）。
-// 与原版的口径差异（均在报告中如实标注）：
-//   1) Yahoo 年报深度约 4 年（原 akshare 5-10 年）→ G3/G5 按实际数据评估；
-//   2) 财报币种 ≠ 股价币种时（如腾讯 CNY/HKD）自动按汇率换算后再算 PE/PB（原版未处理）。
+// Graham value-investing analysis report (The Intelligent Investor, Chapter 14, "The 7 rules for the defensive investor").
+// Ported from the user's graham_report.py (US stocks) / graham_report_hk.py (HK stocks); the scoring logic and report copy are kept consistent.
+// The data source was changed from akshare/efinance (East Money) to Yahoo Finance (directly reachable overseas, covers both US and HK stocks).
+// Differences in methodology from the original (all faithfully noted in the report):
+//   1) Yahoo's annual-report depth is about 4 years (vs 5-10 in the original akshare) → G3/G5 are assessed on the actual data available;
+//   2) When the financial-statement currency ≠ the stock-price currency (e.g. Tencent CNY/HKD), EPS/BPS are converted at the FX rate before computing P/E and P/B (the original did not handle this).
 
 import { normalizeSymbol, fetchChart, fetchAnnuals, fetchSummaryExtra, fetchFx, type AnnualRow, type ChartData } from "./finance";
 
-const fmtB = (v: number, cur: string) => (cur === "USD" ? `$${(v / 1e9).toFixed(2)}B` : `${(v / 1e8).toFixed(1)} 亿 ${cur}`);
-const sig = (ok: boolean) => (ok ? "✅ 通过" : "❌ 不通过");
+const fmtB = (v: number, cur: string) => (cur === "USD" ? `$${(v / 1e9).toFixed(2)}B` : `${(v / 1e8).toFixed(1)} hundred million ${cur}`);
+const sig = (ok: boolean) => (ok ? "✅ Pass" : "❌ Fail");
 
 interface Check { ok: boolean; [k: string]: unknown }
 
-// ── 7 条铁律 ────────────────────────────────────────────
+// ── The 7 rules ────────────────────────────────────────────
 
-// G1 规模：美股营收 ≥ $2B；港股营收 ≥ 50 亿（财报币种），与原版一致
+// G1 Size: US revenue ≥ $2B; HK revenue ≥ 5 billion (in financial-statement currency), matching the original
 function checkG1(annuals: AnnualRow[], market: "us" | "hk", finCur: string): Check {
   const rev = annuals[0]?.revenue;
-  if (rev == null) return { ok: false, note: "数据缺失" };
+  if (rev == null) return { ok: false, note: "Data missing" };
   const threshold = market === "us" ? 2e9 : 5e9;
   const ok = rev >= threshold;
-  const tName = market === "us" ? "≥$2B" : "≥50亿";
-  return { ok, value: rev, note: `最新年度营收 ${fmtB(rev, finCur)} (${ok ? `达标 ${tName}` : "未达标 (Graham 要求大盘股)"})` };
+  const tName = market === "us" ? "≥$2B" : "≥5 billion";
+  return { ok, value: rev, note: `Latest annual revenue ${fmtB(rev, finCur)} (${ok ? `meets ${tName}` : "below threshold (Graham requires large caps)"})` };
 }
 
-// G2 财务稳健：流动比率 ≥ 2 且 资产负债率 ≤ 50%
+// G2 Financial soundness: current ratio ≥ 2 and debt-to-assets ratio ≤ 50%
 function checkG2(annuals: AnnualRow[]): Check {
   const a = annuals[0];
   if (!a) return { ok: false, current_ratio: null, debt_ratio: null };
@@ -40,7 +40,7 @@ function checkG2(annuals: AnnualRow[]): Check {
   };
 }
 
-// G3 利润稳定：现有年份全部盈利（Yahoo 深度约 4 年，原版要求至少 5 年/理想 10 年——报告中标注）
+// G3 Earnings stability: profitable in every available year (Yahoo depth ~4 years; the original requires at least 5 / ideally 10 — noted in the report)
 function checkG3(annuals: AnnualRow[]): Check {
   const rows = annuals.filter((a) => a.netIncome != null);
   const lossYears = rows.filter((a) => (a.netIncome as number) < 0).map((a) => a.year);
@@ -54,16 +54,16 @@ function checkG3(annuals: AnnualRow[]): Check {
   };
 }
 
-// G4 分红记录：连续 10+ 年不间断分红（分红史来自 Yahoo 全量数据，不受年报深度限制）
+// G4 Dividend record: 10+ years of uninterrupted dividends (dividend history from Yahoo's full dataset, not limited by annual-report depth)
 function checkG4(divs: ChartData["dividends"]): Check {
-  if (!divs.length) return { ok: false, consecutive_years: 0, note: "无分红记录" };
+  if (!divs.length) return { ok: false, consecutive_years: 0, note: "No dividend record" };
   const years = [...new Set(divs.map((d) => d.date.getFullYear()))].sort((a, b) => a - b);
   let consecutive = 1;
   for (let i = years.length - 1; i > 0; i--) {
     if (years[i] - years[i - 1] === 1) consecutive++;
     else break;
   }
-  // 分红窗口为近 16 年（见 finance.ts），连续年数到达窗口上限时标注"16+"
+  // The dividend window is the last 16 years (see finance.ts); when the consecutive count reaches the window cap, mark it "16+"
   const capped = consecutive >= years.length && years.length >= 15;
   return {
     ok: consecutive >= 10,
@@ -75,11 +75,11 @@ function checkG4(divs: ChartData["dividends"]): Check {
   };
 }
 
-// G5 盈利增长：最早 vs 最近净利润对比，累计 ≥33%（原版 <6 年时退化为首尾对比，此处数据 4 年走同一退化路径）
+// G5 Earnings growth: earliest vs most recent net income, cumulative ≥33% (the original degrades to a first-vs-last comparison when <6 years; with 4 years here we take that same degraded path)
 function checkG5(annuals: AnnualRow[]): Check {
   const rows = annuals.filter((a) => a.netIncome != null);
-  if (rows.length < 3) return { ok: false, note: `数据不足 (只有 ${rows.length} 年)` };
-  const nps = rows.map((a) => a.netIncome as number); // 最新在前
+  if (rows.length < 3) return { ok: false, note: `Insufficient data (only ${rows.length} years)` };
+  const nps = rows.map((a) => a.netIncome as number); // latest first
   let early: number, recent: number;
   if (nps.length >= 6) {
     early = (nps.slice(-3).reduce((s, x) => s + x, 0)) / 3;
@@ -98,11 +98,11 @@ function checkG5(annuals: AnnualRow[]): Check {
   };
 }
 
-// G6 估值：PE ≤ 15（3 年平均 EPS；财报币种≠股价币种时先换算）
+// G6 Valuation: P/E ≤ 15 (3-year average EPS; converts first when the financial-statement currency ≠ the stock-price currency)
 function checkG6(annuals: AnnualRow[], price: number, fx: number): Check {
   const eps = annuals.map((a) => a.eps).filter((x): x is number => x != null).slice(0, 3);
-  if (!eps.length) return { ok: false, note: "EPS 数据缺失" };
-  const avg = (eps.reduce((s, x) => s + x, 0) / eps.length) * fx; // 换算到股价币种
+  if (!eps.length) return { ok: false, note: "EPS data missing" };
+  const avg = (eps.reduce((s, x) => s + x, 0) / eps.length) * fx; // convert to the stock-price currency
   const pe = avg > 0 ? price / avg : null;
   return {
     ok: pe != null && pe <= 15,
@@ -112,12 +112,12 @@ function checkG6(annuals: AnnualRow[], price: number, fx: number): Check {
   };
 }
 
-// G7 价格：PB ≤ 1.5（BPS = 净资产/股本，quoteSummary bookValue 兜底；币种换算同 G6）
+// G7 Price: P/B ≤ 1.5 (BPS = equity / shares, falling back to quoteSummary bookValue; same currency conversion as G6)
 function checkG7(annuals: AnnualRow[], price: number, fx: number, bookValueFallback: number | null): Check {
   const a = annuals[0];
   let bps: number | null = a?.equity && a?.shares ? a.equity / a.shares : null;
   if (bps == null || bps <= 0) bps = bookValueFallback;
-  if (bps == null || bps <= 0) return { ok: false, pb: null, bps: null, note: "BPS 数据缺失" };
+  if (bps == null || bps <= 0) return { ok: false, pb: null, bps: null, note: "BPS data missing" };
   bps = bps * fx;
   const pb = price / bps;
   return { ok: pb <= 1.5, pb: Math.round(pb * 100) / 100, bps: Math.round(bps * 100) / 100 };
@@ -130,119 +130,119 @@ function checkCombined(g6: Check, g7: Check): Check {
   return { ok: prod <= 22.5, product: Math.round(prod * 100) / 100 };
 }
 
-// ── 报告渲染（文案与原版一致，数据源相关说明已更新） ──────────
+// ── Report rendering (copy matches the original; data-source-related notes updated) ──────────
 
 function sectionIntro(symbol: string, name: string, price: number, priceCur: string, finCur: string,
                       totalPass: number, market: "us" | "hk"): string {
-  const title = name ? `${symbol}（${name}）` : symbol;
+  const title = name ? `${symbol} (${name})` : symbol;
   const cn = 7;
   let verdict: string;
   if (totalPass === cn) {
-    verdict = `🟢 **强候选 (${totalPass}/${cn})** — 满足 Graham 全部 7 条铁律\n\n这是 Graham 系统认可的「防守型投资者」可买入候选. 能同时通过 7 条非常罕见 —— 通常意味着这家公司被市场长期低估, 值得深入研究.`;
+    verdict = `🟢 **Strong candidate (${totalPass}/${cn})** — satisfies all 7 of Graham's rules\n\nThis is a buy candidate that the Graham system endorses for the "defensive investor". Passing all 7 at once is very rare — it usually means the market has undervalued this company over the long run, and it is worth deeper research.`;
   } else if (totalPass >= 5) {
-    verdict = `🟡 **接近合格 (${totalPass}/${cn})** — 仅 ${cn - totalPass} 项未达标\n\n大部分铁律通过, 但 Graham 原则上要求全部满足. 看下面哪项未过, 自己判断能否容忍.`;
+    verdict = `🟡 **Nearly qualified (${totalPass}/${cn})** — only ${cn - totalPass} item(s) below threshold\n\nMost rules pass, but Graham in principle requires all of them. Look below at which ones failed and judge for yourself whether you can tolerate them.`;
   } else if (totalPass >= 3) {
-    verdict = `🟠 **部分达标 (${totalPass}/${cn})** — 需谨慎\n\n只过了一半的铁律. 通常说明公司有明显短板 (估值过高, 财务杠杆, 或增长疲弱).`;
+    verdict = `🟠 **Partially qualified (${totalPass}/${cn})** — proceed with caution\n\nOnly about half the rules pass. This usually indicates an obvious weakness (overvaluation, financial leverage, or weak growth).`;
   } else {
-    verdict = `🔴 **不符合 Graham 标准 (${totalPass}/${cn})**\n\n多数铁律未达标. 不是 Graham 系统的买入候选. 但**不等于公司差** —— 可能只是不适合这个体系. 比如 NVDA / TSLA 这类成长股估值高自然过不了 G6/G7, 但用 CAN SLIM 框架可能很优秀.`;
+    verdict = `🔴 **Does not meet Graham's standards (${totalPass}/${cn})**\n\nMost rules fail. This is not a Graham-system buy candidate. But this **does not mean the company is bad** — it may simply not fit this framework. For example, growth stocks like NVDA / TSLA naturally fail G6/G7 due to high valuations, yet may look excellent under the CAN SLIM framework.`;
   }
-  const cands = market === "us" ? "KO / JNJ / PG / WMT / XOM / PFE / VZ" : "银行 / 公用事业 / 消费龙头 (如 00939 建行、00168 青啤)";
-  return `# 📚 ${title} Graham 价值投资分析报告
+  const cands = market === "us" ? "KO / JNJ / PG / WMT / XOM / PFE / VZ" : "banks / utilities / consumer leaders (e.g. 00939 CCB, 00168 Tsingtao)";
+  return `# 📚 ${title} Graham Value-Investing Analysis Report
 
-**日期**: ${new Date().toISOString().slice(0, 10)}  ·  **现价**: ${priceCur === "USD" ? "$" : priceCur + " "}${price}  ·  **财报币种**: ${finCur}
+**Date**: ${new Date().toISOString().slice(0, 10)}  ·  **Current price**: ${priceCur === "USD" ? "$" : priceCur + " "}${price}  ·  **Financial-statement currency**: ${finCur}
 
 ---
 
-## 🎯 一句话结论
+## 🎯 One-line conclusion
 
 ${verdict}
 
 ---
 
-## 📚 这份报告基于什么？
+## 📚 What is this report based on?
 
-**Benjamin Graham**（巴菲特的老师）在 1949 年出版的《聪明的投资者》第 14 章, 给"防守型投资者"列了 **7 条买入铁律**. 这是价值投资的奠基性框架: **以低于内在价值的价格, 买入稳健的成熟公司**, 长期持有.
+**Benjamin Graham** (Warren Buffett's mentor), in Chapter 14 of *The Intelligent Investor* published in 1949, laid out **7 buy rules** for the "defensive investor". This is the foundational framework of value investing: **buy sound, mature companies at a price below their intrinsic value**, and hold for the long term.
 
-跟 CAN SLIM (找强势成长股) 完全相反 —— Graham 找的是**安全、稳定、便宜**的公司. ${market === "us" ? "美股" : "港股"}的典型 Graham 候选: ${cands}.
+It is the exact opposite of CAN SLIM (which hunts for strong growth stocks) — Graham looks for companies that are **safe, stable, and cheap**. Typical Graham candidates in ${market === "us" ? "US" : "HK"} equities: ${cands}.
 
-下面逐项检查 7 条.
+Below we check all 7 rules one by one.
 `;
 }
 
 function sectionG1(r: Check, market: "us" | "hk", finCur: string): string {
   const val = r.value as number | undefined;
   const valStr = val ? fmtB(val, finCur) : "—";
-  const std = market === "us" ? "年营收 ≥ $2B (原书 1973 是 $100M, 通胀和经济规模调整后)" : "年营收 ≥ 50 亿 (按财报币种, 港股门槛)";
-  return `## G1 规模够不够大？
+  const std = market === "us" ? "Annual revenue ≥ $2B (the 1973 book said $100M; adjusted for inflation and the size of the economy)" : "Annual revenue ≥ 5 billion (in financial-statement currency, HK threshold)";
+  return `## G1 Is the company large enough?
 
-**测什么**：公司年营收够不够大. Graham 不要散户碰小盘股, 因为小公司一遇风险就垮.
+**What it tests**: whether the company's annual revenue is large enough. Graham did not want retail investors touching small caps, because small companies collapse at the first sign of trouble.
 
-**为什么重要**：大公司通常有规模优势 + 抗风险能力, 适合"防守"型策略.
+**Why it matters**: large companies usually enjoy economies of scale plus resilience to risk, which suits a "defensive" strategy.
 
-**通过标准**：${std}
+**Pass criteria**: ${std}
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| 最新年度营收 | **${valStr}** |
+| Latest annual revenue | **${valStr}** |
 
 ### ${sig(r.ok)}
 
 ${r.note || ""}
 
-💡 **小白须知**: 这条是"过滤小盘股"的, 不是为了找最大的. ${market === "us" ? "标普 500 成分股的中位数营收约 $80 亿, $2B 大致是\"中盘股以上\"的门槛." : "港股小盘股流动性差、信息披露弱, 这条过滤尤其重要."}
+💡 **For beginners**: this rule "filters out small caps"; it is not about finding the biggest. ${market === "us" ? "The median revenue of S&P 500 constituents is about $8 billion, so $2B is roughly the \"mid-cap and above\" threshold." : "HK small caps have poor liquidity and weak disclosure, so this filter is especially important."}
 `;
 }
 
 function sectionG2(r: Check): string {
   const cr = r.current_ratio as number | null, dr = r.debt_ratio as number | null;
-  return `## G2 财务稳不稳？
+  return `## G2 Is the balance sheet solid?
 
-**测什么**：
-1. **流动比率** = 流动资产 / 流动负债. ≥2 表示短期偿债能力强.
-2. **资产负债率** ≤ 50%, 表示公司不过度依赖借贷.
+**What it tests**:
+1. **Current ratio** = current assets / current liabilities. ≥2 signals strong short-term solvency.
+2. **Debt-to-assets ratio** ≤ 50%, indicating the company does not over-rely on borrowing.
 
-**为什么重要**：财务杠杆高的公司一旦行业不景气, 容易资金链断裂. Graham 要的是**晚上能睡好觉的稳健公司**.
+**Why it matters**: a highly leveraged company can hit a liquidity crunch once its industry turns down. Graham wanted **sound companies that let you sleep at night**.
 
-**通过标准**：流动比率 ≥ 2 **且** 资产负债率 ≤ 50%
+**Pass criteria**: current ratio ≥ 2 **and** debt-to-assets ratio ≤ 50%
 
-| 指标 | 数值 | 判定 |
+| Metric | Value | Verdict |
 |---|---:|---|
-| 流动比率 | **${cr ?? "—"}** | ${r.cr_ok ? "✅ ≥2" : "❌ <2"} |
-| 资产负债率 | **${dr != null ? dr + "%" : "—"}** | ${r.dr_ok ? "✅ ≤50%" : "❌ >50%"} |
+| Current ratio | **${cr ?? "—"}** | ${r.cr_ok ? "✅ ≥2" : "❌ <2"} |
+| Debt-to-assets ratio | **${dr != null ? dr + "%" : "—"}** | ${r.dr_ok ? "✅ ≤50%" : "❌ >50%"} |
 
 ### ${sig(r.ok)}
 
-${r.ok ? "两项均达标." : "至少一项不达标. 大公司很多用杠杆增厚 ROE (尤其银行/工业/能源), 流动比率 <2 普遍存在."}
+${r.ok ? "Both metrics meet the threshold." : "At least one metric falls short. Many large companies use leverage to boost ROE (banks/industrials/energy in particular), so a current ratio <2 is common."}
 
-💡 **小白须知**: 科技龙头通常财务超稳健 (AAPL/MSFT/GOOGL 流动比率都 >1.5, 现金堆积如山). 反过来, 看到流动比率 <1 + 负债率 >70% 要警惕 —— 经典的"高杠杆陷阱". 注意: **银行股的流动比率/资产负债率口径特殊**, 这两条对银行参考意义有限.
+💡 **For beginners**: tech leaders usually have extremely solid finances (AAPL/MSFT/GOOGL all have current ratios >1.5 and piles of cash). Conversely, a current ratio <1 plus a debt ratio >70% is a warning sign — the classic "high-leverage trap". Note: **banks have a special methodology for the current ratio / debt-to-assets ratio**, so these two rules are of limited relevance to banks.
 `;
 }
 
 function sectionG3(r: Check, finCur: string): string {
   const profits = (r.profits as { year: string; np: number }[]) || [];
-  const unit = finCur === "USD" ? "B$" : "亿 " + finCur;
+  const unit = finCur === "USD" ? "B$" : "hundred million " + finCur;
   const div = finCur === "USD" ? 1e9 : 1e8;
   const rows = profits.map((p) => `| ${p.year} | ${(p.np / div) >= 0 ? "+" : ""}${(p.np / div).toFixed(2)} |`).join("\n");
   const loss = (r.loss_years as string[]) || [];
-  return `## G3 利润稳不稳？
+  return `## G3 Are earnings stable?
 
-**测什么**：可查年份内, 公司是不是**年年盈利**, 有没有亏损过.
+**What it tests**: over the available years, whether the company has been **profitable every single year**, with no losses.
 
-**为什么重要**：一家从未亏损的公司, 说明商业模式扛得住周期. **盈利能力的稳定性比单年高增长更重要**.
+**Why it matters**: a company that has never lost money shows its business model can withstand cycles. **Consistency of profitability matters more than a single year of high growth.**
 
-**通过标准**：现有数据全部无亏损 (Graham 原书要求 10 年; Yahoo 年报深度约 4 年, 按实际数据评估并如实标注).
+**Pass criteria**: no losses across all available data (Graham's book requires 10 years; Yahoo's annual-report depth is ~4 years, so we assess on the actual data and note this honestly).
 
-| 财年 | 归母净利润 (${unit}) |
+| Fiscal year | Net income to shareholders (${unit}) |
 |---|---:|
-${rows || "| — | 数据缺失 |"}
+${rows || "| — | Data missing |"}
 
 ### ${sig(r.ok)}
 
-数据覆盖 ${r.years_count} 年 (${r.earliest_year} → 最近), ${loss.length ? `⚠️ 有亏损年: ${loss.join(", ")}` : "全部盈利, 无亏损年."}
+Data covers ${r.years_count} years (${r.earliest_year} → latest), ${loss.length ? `⚠️ loss years present: ${loss.join(", ")}` : "profitable throughout, no loss years."}
 
-⚠️ **数据深度说明**: 本报告数据源 (Yahoo Finance) 的年报通常覆盖最近 4 年, 比 Graham 要求的 10 年短. 4 年全部盈利是**必要不充分**信号 —— 建议自己再翻一眼公司 10-K/年报确认更早年份.
+⚠️ **Note on data depth**: this report's data source (Yahoo Finance) typically covers the last 4 years of annual reports, shorter than Graham's required 10 years. Four years of unbroken profitability is a **necessary but not sufficient** signal — we suggest checking the company's 10-K / annual reports yourself to confirm the earlier years.
 
-💡 **小白须知**: 这条是 Graham 7 条里**最容易过**的 —— 大部分成熟蓝筹都能过. 过不了的多是周期股 (航空 / 能源 / 半导体) 或长期亏损的故事股.
+💡 **For beginners**: this is the **easiest** of Graham's 7 rules to pass — most mature blue chips clear it. Those that fail are mostly cyclicals (airlines / energy / semiconductors) or perennially loss-making story stocks.
 `;
 }
 
@@ -250,167 +250,167 @@ function sectionG4(r: Check): string {
   const cons = (r.consecutive_years as number) || 0;
   let body: string;
   if (r.note && cons === 0) {
-    body = `### ⚠️ ${r.note}\n\n不分红的公司很多 (尤其科技股 GOOGL/AMZN/TSLA), 这不一定说明公司差, 但 Graham 系统会**直接排除**它们 —— 因为他认为分红是「对股东负责」的硬证据.`;
+    body = `### ⚠️ ${r.note}\n\nPlenty of companies pay no dividends (tech stocks especially, e.g. GOOGL/AMZN/TSLA); this does not necessarily mean the company is bad, but the Graham system **excludes them outright** — because he regarded dividends as hard evidence of "accountability to shareholders".`;
   } else {
-    body = `| 指标 | 数值 |
+    body = `| Metric | Value |
 |---|---:|
-| 最近连续分红年数 | **${cons}${r.capped ? "+" : ""} 年**${r.capped ? " (达统计窗口上限, 实际可能更长)" : ""} |
-| 起始年份 | ${r.first_year}${r.capped ? " (窗口内)" : ""} |
-| 最近分红年份 | ${r.last_year} |
-| 近 16 年有分红的年份数 | ${r.total_records} 年 |
+| Most recent consecutive dividend years | **${cons}${r.capped ? "+" : ""} years**${r.capped ? " (reached the statistical-window cap; the true figure may be longer)" : ""} |
+| Start year | ${r.first_year}${r.capped ? " (within the window)" : ""} |
+| Most recent dividend year | ${r.last_year} |
+| Years with dividends in the last 16 years | ${r.total_records} years |
 
 ### ${sig(r.ok)}
 
-${r.ok ? "连续分红 ≥10 年, 通过." : `连续分红仅 ${cons} 年, 未达 10 年门槛.`}`;
+${r.ok ? "Dividends paid for ≥10 consecutive years — pass." : `Only ${cons} consecutive dividend years, below the 10-year threshold.`}`;
   }
-  return `## G4 分红记录稳不稳？
+  return `## G4 Is the dividend record consistent?
 
-**测什么**：公司是否连续多年**不间断**分红.
+**What it tests**: whether the company has paid dividends **without interruption** for many years.
 
-**为什么重要**：Graham 视分红为"管理层对股东负责"的最强证据. 能持续分红 10 年以上, 说明:
-- 现金流稳定
-- 管理层愿意把钱分给股东 (而不是乱投资)
-- 不是靠融资续命的伪成长股
+**Why it matters**: Graham viewed dividends as the strongest evidence that "management is accountable to shareholders". Sustaining dividends for 10+ years indicates:
+- stable cash flow
+- management willing to return money to shareholders (rather than investing recklessly)
+- not a pseudo-growth story kept alive by financing
 
-**通过标准**：连续 10+ 年不间断分红 (原书 20 年, 此处放宽)
+**Pass criteria**: 10+ years of uninterrupted dividends (the book says 20 years; relaxed here)
 
 ${body}
 
-💡 **小白须知**: 美股有个特殊概念叫 **"Dividend Aristocrats" (分红贵族)** —— 连续 25 年+ 提高分红的公司, 全市场只有 60+ 只, 都是 Graham 的天然候选. 包括 KO / PG / JNJ / MCD / WMT / MMM. 分红历史数据源: Yahoo Finance (全量历史, 覆盖完整).
+💡 **For beginners**: US markets have a special concept called **"Dividend Aristocrats"** — companies that have raised their dividend for 25+ consecutive years. There are only 60+ in the whole market, and they are natural Graham candidates, including KO / PG / JNJ / MCD / WMT / MMM. Dividend-history data source: Yahoo Finance (full history, complete coverage).
 `;
 }
 
 function sectionG5(r: Check, finCur: string): string {
-  if (r.note) return `## G5 利润有没有持续增长？\n\n### ❌ 不通过\n\n${r.note}\n`;
+  if (r.note) return `## G5 Have earnings grown consistently?\n\n### ❌ Fail\n\n${r.note}\n`;
   const div = finCur === "USD" ? 1e9 : 1e8;
-  const unit = finCur === "USD" ? "B" : "亿";
+  const unit = finCur === "USD" ? "B" : " hundred million";
   const growth = r.growth_pct as number | null;
   const n = r.years_count as number;
-  return `## G5 利润有没有持续增长？
+  return `## G5 Have earnings grown consistently?
 
-**测什么**：拿**最早年份净利润**对比**最近年份净利润**, 看累计涨幅.
+**What it tests**: compare **the earliest year's net income** with **the most recent year's net income** to see the cumulative gain.
 
-**为什么重要**：哪怕是稳健公司, 也得有点儿成长. 累计 33% 增长是 Graham 设的最低底线 (原书按 10 年跨度 ~年化 3%, 仅比通胀略高).
+**Why it matters**: even a sound company needs some growth. A cumulative 33% gain is the minimum floor Graham set (his book uses a 10-year span at ~3% annualized, only slightly above inflation).
 
-**通过标准**：累计增长 ≥ 33%
+**Pass criteria**: cumulative growth ≥ 33%
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| 最早年份净利润 | ${((r.early_b as number) / div).toFixed(2)}${unit} |
-| 最近年份净利润 | ${((r.recent_b as number) / div).toFixed(2)}${unit} |
-| 累计增长 | **${growth != null ? (growth >= 0 ? "+" : "") + growth + "%" : "—"}** |
-| 时间跨度 | ${r.years_span} (${n} 年) |
+| Earliest-year net income | ${((r.early_b as number) / div).toFixed(2)}${unit} |
+| Most recent net income | ${((r.recent_b as number) / div).toFixed(2)}${unit} |
+| Cumulative growth | **${growth != null ? (growth >= 0 ? "+" : "") + growth + "%" : "—"}** |
+| Time span | ${r.years_span} (${n} years) |
 
 ### ${sig(r.ok)}
 
-💡 **小白须知**: 这里用**净利润总额**而非 EPS — EPS 会受拆股/回购扰动, 净利润增长更贴近 Graham 原意 — 公司「盈利能力」是否在增长. ⚠️ 当前数据跨度仅 ${n} 年 (Yahoo 年报深度限制), 比原书 10 年窗口短, 33% 门槛对短窗口偏严格, 结果仅供参考.
+💡 **For beginners**: this uses **total net income** rather than EPS — EPS is distorted by splits/buybacks, while net income growth stays closer to Graham's intent — whether the company's "earning power" is growing. ⚠️ The current data spans only ${n} years (limited by Yahoo's annual-report depth), shorter than the book's 10-year window; the 33% threshold is somewhat strict for a short window, so treat the result as indicative only.
 `;
 }
 
 function sectionG6(r: Check, priceCur: string, fxNote: string): string {
-  return `## G6 估值合理吗？(PE)
+  return `## G6 Is the valuation reasonable? (P/E)
 
-**测什么**：当前股价 / 过去 3 年平均 EPS = **PE (市盈率)**.
+**What it tests**: current price / average EPS over the past 3 years = **P/E ratio**.
 
-**为什么重要**：PE 是衡量"贵不贵"的最常用指标. **PE 15 倍**意味着按当前盈利能力, 投资 15 年回本. Graham 认为再高就是为成长付溢价了, 不属于"防守"型投资.
+**Why it matters**: P/E is the most common gauge of "cheap vs. expensive". A **P/E of 15** means it takes 15 years to recoup your investment at current earning power. Graham considered anything higher to be paying a premium for growth, which is not "defensive" investing.
 
-**通过标准**：PE ≤ 15 (用 3 年平均利润, 不用单年, 避免周期干扰)
+**Pass criteria**: P/E ≤ 15 (using 3-year average earnings, not a single year, to avoid cyclical noise)
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| 当前股价 | ${priceCur === "USD" ? "$" : priceCur + " "}${r.price} |
-| 3 年平均 EPS${fxNote ? " (已换算)" : ""} | ${r.avg_eps_3y} ${priceCur} |
-| **PE** | **${r.pe ?? "—"}** |
+| Current price | ${priceCur === "USD" ? "$" : priceCur + " "}${r.price} |
+| 3-year average EPS${fxNote ? " (converted)" : ""} | ${r.avg_eps_3y} ${priceCur} |
+| **P/E** | **${r.pe ?? "—"}** |
 
 ### ${sig(r.ok)}
 
-${r.ok ? "PE 合理, 价格不贵." : "PE 超过 15, 估值偏贵 —— 不符合 Graham 防守型门槛."}${fxNote}
+${r.ok ? "P/E is reasonable; the price is not expensive." : "P/E exceeds 15; the valuation is on the expensive side — it does not meet Graham's defensive threshold."}${fxNote}
 
-💡 **小白须知**: PE 这条 + 下面 PB 这条, 是 Graham 7 条里**最难过**的两道关. 美股长期估值偏高 (尤其科技股 PE 普遍 25-40), 能找到 PE<15 的优质公司大多在: **银行/保险, 能源, 传统消费, 制药**. **Graham 的精髓就是只在"好公司打折时"买**.
+💡 **For beginners**: this P/E rule plus the P/B rule below are the **two hardest** of Graham's 7 to pass. US valuations have been high for a long time (tech stocks especially run at P/E 25-40), and the quality companies you can find with P/E<15 are mostly in: **banks/insurance, energy, traditional consumer, pharma**. **The essence of Graham is to buy only "good companies on sale".**
 `;
 }
 
 function sectionG7(r: Check, gc: Check, priceCur: string, fxNote: string): string {
-  return `## G7 价格不离谱吗？(PB / Graham 公式)
+  return `## G7 Is the price sane? (P/B / Graham's formula)
 
-**测什么**：股价 / 每股净资产 = **PB (市净率)**. 衡量"以多少倍账面价值在买这家公司".
+**What it tests**: price / book value per share = **P/B ratio**. It measures "how many times book value you are paying for this company".
 
-**为什么重要**：PE 看的是利润, PB 看的是**资产**. 两者结合才能避免被"虚高利润"骗 (利润可粉饰, 净资产较难).
+**Why it matters**: P/E looks at earnings; P/B looks at **assets**. Combining the two avoids being fooled by "inflated earnings" (earnings can be dressed up; net assets are harder to fake).
 
-**通过标准**：
-- **严格版**: PB ≤ 1.5
-- **Graham 公式** (兜底): PE × PB ≤ 22.5 — 允许某一项超标, 只要另一项足够低
+**Pass criteria**:
+- **Strict version**: P/B ≤ 1.5
+- **Graham's formula** (fallback): P/E × P/B ≤ 22.5 — allows one metric to exceed its limit as long as the other is low enough
 
-| 指标 | 数值 |
+| Metric | Value |
 |---|---:|
-| 每股净资产 BPS${fxNote ? " (已换算)" : ""} | ${r.bps ?? "—"} ${priceCur} |
-| **PB** | **${r.pb ?? "—"}** |
-| **Graham 公式 PE × PB** | **${gc.product ?? "—"}** (${gc.ok ? "≤22.5 ✅" : ">22.5 ❌"}) |
+| Book value per share (BPS)${fxNote ? " (converted)" : ""} | ${r.bps ?? "—"} ${priceCur} |
+| **P/B** | **${r.pb ?? "—"}** |
+| **Graham's formula P/E × P/B** | **${gc.product ?? "—"}** (${gc.ok ? "≤22.5 ✅" : ">22.5 ❌"}) |
 
-### ${sig(r.ok)} (严格 PB ≤ 1.5)
+### ${sig(r.ok)} (strict P/B ≤ 1.5)
 
-${r.ok ? "PB 严格达标." : `PB 超过 1.5${gc.ok ? "，但 Graham 综合公式 PE × PB ≤ 22.5 还能过 — 算放宽达标." : "，且综合公式也未达标."}`}
+${r.ok ? "P/B meets the strict threshold." : `P/B exceeds 1.5${gc.ok ? ", but Graham's combined formula P/E × P/B ≤ 22.5 still passes — counts as a relaxed pass." : ", and the combined formula also falls short."}`}
 
-💡 **小白须知**: PB < 1 称为"破净", 意味着市场认为公司还不如清算掉值钱. **破净 + 稳定盈利**就是 Graham 最爱的"烟蒂股". 港股的破净股比美股多得多 (银行/地产/公用一大片), 但注意区分"便宜"和"价值陷阱".
+💡 **For beginners**: P/B < 1 is called "trading below book", meaning the market thinks the company is worth less than its liquidation value. **Below book + stable profitability** is Graham's favorite "cigar-butt stock". HK markets have far more below-book stocks than US markets (banks/property/utilities in droves), but be careful to distinguish "cheap" from a "value trap".
 `;
 }
 
 function sectionLearning(checks: Record<string, Check>): string {
   const lessons: string[] = [];
-  if (!checks.G1.ok) lessons.push("**小盘股有更高风险** — Graham 让散户避开. 你能承受多大波动, 决定了能否触碰小盘股.");
-  if (!checks.G2.ok) lessons.push("**大公司财务杠杆很常见** — 银行 / 公用 / 工业普遍 <2 流动比率. 看 <1 警惕, >2 加分.");
-  if (checks.G3.ok) lessons.push("**多年不亏 = 抗周期能力强** — 这是公司质量的硬指标, 比单年利润更重要.");
-  else if ((checks.G3.loss_years as string[])?.length) lessons.push(`**注意亏损年份 ${(checks.G3.loss_years as string[]).join(", ")}** — 这些年份发生了什么? 是行业危机, 还是公司自身问题?`);
-  if (checks.G4.ok) lessons.push("**连续 10 年+ 分红** — 这是管理层质量的最强信号.");
-  else if (!(checks.G4.consecutive_years as number)) lessons.push("**不分红很常见** — 科技股 (GOOGL / AMZN / TSLA) 长期不分红, Graham 系统会直接排除它们, 但不等于公司差, 只是不适合这个体系.");
-  if (!checks.G6.ok && !checks.G7.ok) lessons.push("**估值过高的好公司, Graham 也不买** — 这是价值投资和成长投资最大的区别. 价值派宁可空仓等便宜机会.");
-  lessons.push("**Graham 7 条是'最低门槛', 不是'买点'** — 都过了不等于明天就涨, 但意味着你买在了一个**安全的价格**.");
-  lessons.push("**Graham 和 CAN SLIM 是两套完全不同的逻辑** — 同一只票在两个系统里得分会差距很大. 关键是**先选系统, 再选股**.");
-  return `## 🎓 这次分析教你的几件事\n\n${lessons.map((x, i) => `${i + 1}. ${x}`).join("\n")}\n`;
+  if (!checks.G1.ok) lessons.push("**Small caps carry higher risk** — Graham told retail investors to avoid them. How much volatility you can bear determines whether you should touch small caps at all.");
+  if (!checks.G2.ok) lessons.push("**Financial leverage is common among large companies** — banks / utilities / industrials routinely run current ratios <2. Be wary at <1, add points at >2.");
+  if (checks.G3.ok) lessons.push("**Years without a loss = strong resilience to cycles** — this is a hard indicator of company quality, more important than a single year's profit.");
+  else if ((checks.G3.loss_years as string[])?.length) lessons.push(`**Note the loss years ${(checks.G3.loss_years as string[]).join(", ")}** — what happened in those years? An industry crisis, or a company-specific problem?`);
+  if (checks.G4.ok) lessons.push("**10+ consecutive years of dividends** — this is the strongest signal of management quality.");
+  else if (!(checks.G4.consecutive_years as number)) lessons.push("**Paying no dividends is common** — tech stocks (GOOGL / AMZN / TSLA) go without dividends for years, and the Graham system excludes them outright; that does not mean the company is bad, only that it does not fit this framework.");
+  if (!checks.G6.ok && !checks.G7.ok) lessons.push("**Graham won't buy even a great company if it's overvalued** — this is the biggest difference between value and growth investing. Value investors would rather hold cash and wait for a cheap opportunity.");
+  lessons.push("**Graham's 7 rules are a 'minimum bar', not a 'buy point'** — passing them all doesn't mean the stock rises tomorrow, but it means you bought at a **safe price**.");
+  lessons.push("**Graham and CAN SLIM are two entirely different logics** — the same stock can score very differently in each system. The key is to **pick the system first, then the stock**.");
+  return `## 🎓 A few things this analysis teaches you\n\n${lessons.map((x, i) => `${i + 1}. ${x}`).join("\n")}\n`;
 }
 
 function sectionChecklist(): string {
-  return `## ✅ 你下次自己分析价值股时的检查清单
+  return `## ✅ Your checklist for analyzing value stocks next time
 
-把下面这个清单存起来, 看到任何成熟公司都按这个顺序检查:
+Save the checklist below and run through it in this order for any mature company you look at:
 
-### 第一步: 公司基础面 (G1-G4)
-- [ ] 营收够大 (避开小盘股)
-- [ ] 流动比率 ≥ 2 (短期偿债能力)
-- [ ] 资产负债率 ≤ 50%
-- [ ] 近 10 年没亏过钱
-- [ ] 连续 10+ 年不间断分红
+### Step 1: company fundamentals (G1-G4)
+- [ ] Revenue large enough (avoid small caps)
+- [ ] Current ratio ≥ 2 (short-term solvency)
+- [ ] Debt-to-assets ratio ≤ 50%
+- [ ] No losses in the last 10 years
+- [ ] 10+ years of uninterrupted dividends
 
-### 第二步: 成长底线 (G5)
-- [ ] 近 10 年盈利累计增长 ≥ 33% (年化 ~3%, 比通胀略高)
+### Step 2: growth floor (G5)
+- [ ] Cumulative earnings growth ≥ 33% over the last 10 years (~3% annualized, slightly above inflation)
 
-### 第三步: 估值合理 (G6 + G7) ⭐ 关键
-- [ ] PE ≤ 15 (用 3 年平均利润)
-- [ ] PB ≤ 1.5 **或** PE × PB ≤ 22.5 (Graham 公式)
+### Step 3: reasonable valuation (G6 + G7) ⭐ key
+- [ ] P/E ≤ 15 (using 3-year average earnings)
+- [ ] P/B ≤ 1.5 **or** P/E × P/B ≤ 22.5 (Graham's formula)
 
-### 第四步: 安全边际
-- [ ] 估算公司**内在价值**, 买价 ≤ 内在价值 × 0.7 (留 30% 折扣作安全垫)
-- [ ] 这是 Graham 最核心的概念 —— "margin of safety"
+### Step 4: margin of safety
+- [ ] Estimate the company's **intrinsic value**; buy price ≤ intrinsic value × 0.7 (leave a 30% discount as a cushion)
+- [ ] This is Graham's core concept — "margin of safety"
 
-### 第五步: 持有策略
-- [ ] **长期持有 3-10 年**, 等市场重新发现价值
-- [ ] **分散持仓**: 单股不超 10%, 至少 10-30 只
-- [ ] **不止损** (跟 CAN SLIM 相反): 价格越跌越便宜, 但前提是公司基本面没变
+### Step 5: holding strategy
+- [ ] **Hold for the long term, 3-10 years**, waiting for the market to rediscover the value
+- [ ] **Diversify**: no single stock over 10%, at least 10-30 names
+- [ ] **No stop-loss** (opposite of CAN SLIM): the lower the price falls the cheaper it gets — provided the company's fundamentals have not changed
 `;
 }
 
 function sectionRisk(): string {
-  return `## ⚠️ 风险提示
+  return `## ⚠️ Risk disclaimer
 
-1. **本报告不构成投资建议**. Graham 框架是 1949 年的产物, 部分条款 (如 20 年分红史) 在今天的科技股几乎无法严格满足.
-2. **数据源**: 行情/财报/分红均来自 Yahoo Finance. 财报数据可能有 1-2 个季度延迟.
-3. **数据深度**: Yahoo 年报通常覆盖最近 4 年, 短于 Graham 要求的 10 年窗口. G3/G5 按实际数据评估, 结论强度相应打折.
-4. **Graham 框架 ≠ 万能**: 它擅长找"便宜的稳健公司", 但会错过所有真正的高速成长股 (亚马逊/英伟达早年都不符合). 知道工具的边界.
-5. **价值投资的核心是耐心**: Graham 说过"市场短期是投票机, 长期是称重机". 散户最大的失败不是选错股, 而是没有耐心持有.
+1. **This report is not investment advice.** The Graham framework is a product of 1949, and some of its clauses (e.g. a 20-year dividend history) are nearly impossible for today's tech stocks to satisfy strictly.
+2. **Data source**: quotes/financials/dividends all come from Yahoo Finance. Financial data may lag by 1-2 quarters.
+3. **Data depth**: Yahoo's annual reports typically cover the last 4 years, shorter than Graham's required 10-year window. G3/G5 are assessed on the actual data, so the strength of the conclusion is discounted accordingly.
+4. **The Graham framework is not a cure-all**: it excels at finding "cheap, sound companies" but misses every genuinely high-growth stock (Amazon and Nvidia both failed to qualify in their early years). Know the limits of your tool.
+5. **The core of value investing is patience**: Graham said "in the short run the market is a voting machine, in the long run it is a weighing machine". A retail investor's biggest failure is not picking the wrong stock, but lacking the patience to hold.
 `;
 }
 
-// ── 主流程 ───────────────────────────────────────────────
+// ── Main flow ───────────────────────────────────────────────
 
 export async function generateGrahamReport(rawSymbol: string, market: "us" | "hk"): Promise<string> {
   const sym = normalizeSymbol(rawSymbol, market);
@@ -419,9 +419,9 @@ export async function generateGrahamReport(rawSymbol: string, market: "us" | "hk
     fetchAnnuals(sym),
     fetchSummaryExtra(sym),
   ]);
-  if (!annuals.length) throw new Error("无法获取年度财报数据（代码不存在或无财报覆盖）");
+  if (!annuals.length) throw new Error("Unable to fetch annual financial data (symbol does not exist or has no financial coverage)");
 
-  // 币种处理：财报币种 ≠ 股价币种时（如腾讯 CNY→HKD）拉汇率换算 EPS/BPS
+  // Currency handling: when the financial-statement currency ≠ the stock-price currency (e.g. Tencent CNY→HKD), fetch the FX rate to convert EPS/BPS
   const finCur = extra.financialCurrency || chart.currency;
   let fx = 1;
   let fxNote = "";
@@ -429,9 +429,9 @@ export async function generateGrahamReport(rawSymbol: string, market: "us" | "hk
     const rate = await fetchFx(finCur, chart.currency);
     if (rate) {
       fx = rate;
-      fxNote = `\n\n> 💱 注: 该公司财报以 ${finCur} 计价、股价以 ${chart.currency} 计价, EPS/BPS 已按汇率 ${rate.toFixed(4)} 换算后再计算 PE/PB.`;
+      fxNote = `\n\n> 💱 Note: this company reports in ${finCur} while the stock is priced in ${chart.currency}; EPS/BPS have been converted at an FX rate of ${rate.toFixed(4)} before computing P/E and P/B.`;
     } else {
-      fxNote = `\n\n> ⚠️ 注: 财报币种 (${finCur}) 与股价币种 (${chart.currency}) 不同且汇率获取失败, PE/PB 可能存在币种偏差.`;
+      fxNote = `\n\n> ⚠️ Note: the financial-statement currency (${finCur}) differs from the stock-price currency (${chart.currency}) and the FX rate could not be fetched, so P/E and P/B may have a currency bias.`;
     }
   }
 
@@ -461,6 +461,6 @@ export async function generateGrahamReport(rawSymbol: string, market: "us" | "hk
     sectionLearning(checks), "\n---\n",
     sectionChecklist(), "\n---\n",
     sectionRisk(),
-    `\n---\n*报告由 AI 链 · 分析工具生成 · 数据源 Yahoo Finance · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC*\n`,
+    `\n---\n*Report generated by the AI Chain · Analysis Tool · data source Yahoo Finance · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC*\n`,
   ].join("\n");
 }

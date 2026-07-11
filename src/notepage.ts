@@ -2,12 +2,12 @@
 // 数据来自 /api/vidnotes，关联环节名称来自 /api/mapdata（seg key → 中文名 + 跳地图）。
 
 export const NOTE_HTML = /* html */ `<!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>大佬观点 · AI 链</title>
+<title>The Big Picture · AIChain</title>
 <style>
   :root { --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;
     --txt:#e6e9f0; --dim:#8a93a8; --acc:#4f8cff; --acc2:#36d399; --invest:#f5b301; }
@@ -43,12 +43,12 @@ export const NOTE_HTML = /* html */ `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <a class="logo" href="/" title="返回首页" aria-label="返回首页">AI</a>
-  <h1>🎬 投资视频解读</h1>
-  <a class="back" href="/?notes=1">← 全部笔记</a>
+  <a class="logo" href="/" title="Home" aria-label="Home">AI</a>
+  <h1>🎬 Video Notes</h1>
+  <a class="back" href="/?notes=1">← All notes</a>
 </header>
 <div class="wrap">
-  <div id="loading">加载中…</div>
+  <div id="loading">Loading…</div>
   <article id="article" style="display:none"></article>
 </div>
 <script>
@@ -67,10 +67,10 @@ async function init(){
     (md.nodes||[]).forEach(n=>{ segNames[n.id] = n.name; });
   }catch(e){}
   const n = notes.find(x=>x.id===id);
-  if(!n){ $("#loading").textContent = "未找到这篇笔记。"; return; }
-  document.title = n.title + " · AI 链";
+  if(!n){ $("#loading").textContent = "This note could not be found."; return; }
+  document.title = n.title + " · AIChain";
 
-  const catLabel = n.category==="howto" ? "🛠️ AI 实操" : "💡 投资观点";
+  const catLabel = n.category==="howto" ? "🛠️ AI How-To" : "💡 Market Views";
   const catChip = '<span class="chip" style="background:'+(n.category==="howto"?"#4f8cff":"var(--invest)")+';color:'+(n.category==="howto"?"#fff":"#1a1a1a")+'">'+catLabel+'</span>';
   const tks = (n.tickers||[]).map(t=>'<span class="chip">'+esc(t)+'</span>').join("");
   const segs = (n.segs||[]).map(s=>'<a class="seglink" href="/map">🔗 '+esc(segNames[s]||s)+'</a>').join("");
@@ -82,11 +82,11 @@ async function init(){
     '<h1 class="title">'+esc(n.title)+'</h1>'+
     '<div class="meta"><span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
       '<span>·</span><span>'+esc(n.videoTitle||"")+'</span></div>'+
-    (n.url?'<a class="watch" href="'+esc(n.url)+'" target="_blank" rel="noopener">▶ 观看原视频</a>':"")+
+    (n.url?'<a class="watch" href="'+esc(n.url)+'" target="_blank" rel="noopener">▶ Watch original</a>':"")+
     chips +
-    (pts?'<h2 class="sec">📌 核心要点</h2><ul class="pts">'+pts+'</ul>':"")+
-    (paras?'<h2 class="sec">📝 详细解读</h2><div class="full">'+paras+'</div>':"")+
-    '<div class="src">本文为基于公开视频的要点整理, 不构成投资建议. 数据/观点版权归原作者所有.</div>';
+    (pts?'<h2 class="sec">📌 Key Takeaways</h2><ul class="pts">'+pts+'</ul>':"")+
+    (paras?'<h2 class="sec">📝 Full Breakdown</h2><div class="full">'+paras+'</div>':"")+
+    '<div class="src">Summary of key points from a public video. Not investment advice; rights belong to the original authors.</div>';
   $("#loading").style.display = "none";
   $("#article").style.display = "block";
 }

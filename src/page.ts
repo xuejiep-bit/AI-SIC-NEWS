@@ -151,6 +151,76 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   #navToggle { font-size:15px; line-height:1; padding:7px 11px; }
   .wrap.navcollapsed aside { display:none; }
   @media (max-width:760px){ #navToggle{ display:none; } }
+
+  /* ── Exploded-view chain hero (namespaced under #chainHero / .xd-*) ── */
+  #chainHero { --faint:#5b6b86; --cyan:#38bdf8; --xmono:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+    margin:0 0 20px; padding:24px 22px 20px; border:1px solid var(--line); border-radius:16px; background:
+      radial-gradient(700px 320px at 12% -20%, rgba(79,140,255,.10), transparent 60%),
+      radial-gradient(700px 340px at 92% 130%, rgba(54,211,153,.08), transparent 60%),
+      linear-gradient(180deg, rgba(255,255,255,.015), transparent), var(--panel); }
+  #chainHero .xeye { font-family:var(--xmono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--dim); display:flex; align-items:center; gap:10px; }
+  #chainHero .xeye::before { content:""; width:24px; height:1px; background:var(--faint); }
+  #chainHero .xtitle { margin:10px 0 4px; font-size:clamp(22px,3vw,32px); line-height:1.14; font-weight:800; letter-spacing:-.01em; }
+  #chainHero .xtitle b { background:linear-gradient(90deg,var(--up),var(--cyan) 55%,var(--down)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #chainHero .xsub { color:var(--dim); font-size:13px; max-width:64ch; line-height:1.6; margin:0 0 22px; }
+  #chainHero .figs { display:flex; align-items:stretch; gap:0; }
+  #chainHero .fig { flex:1 1 0; min-width:0; padding:0 6px; }
+  #chainHero .fighead { font-family:var(--xmono); margin-bottom:8px; }
+  #chainHero .fighead .code { color:var(--tc); font-size:12px; letter-spacing:.14em; }
+  #chainHero .fighead .tier { color:var(--dim); font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; }
+  #chainHero .fighead .name { color:var(--txt); font-family:inherit; font-size:14px; font-weight:700; margin-top:3px; }
+  #chainHero .figcard { border:1px solid var(--line); border-radius:14px; background:linear-gradient(180deg,rgba(255,255,255,.015),transparent); padding:10px 8px 6px; }
+  #chainHero svg.exploded { width:100%; height:auto; display:block; overflow:visible; }
+  #chainHero .ly { cursor:pointer; outline:none; }
+  #chainHero .ly .bar { fill:color-mix(in srgb,var(--tc) 8%,transparent); stroke:color-mix(in srgb,var(--tc) 45%,var(--faint)); stroke-width:1; transition:fill .15s,stroke .15s,stroke-width .15s; }
+  #chainHero .ly .grip { stroke:color-mix(in srgb,var(--tc) 35%,var(--faint)); stroke-width:1; opacity:.55; }
+  #chainHero .ly .lead { stroke:var(--faint); stroke-width:1; stroke-dasharray:2 3; fill:none; transition:stroke .15s; }
+  #chainHero .ly .num { fill:var(--dim); font-family:var(--xmono); font-size:8.5px; }
+  #chainHero .ly .lbl { fill:var(--dim); font-family:var(--xmono); font-size:9.2px; transition:fill .15s; }
+  #chainHero .ly .core { fill:var(--tc); }
+  #chainHero .axis { stroke:var(--faint); stroke-width:1; stroke-dasharray:1 4; opacity:.55; }
+  #chainHero .reg { stroke:var(--faint); stroke-width:1; opacity:.5; fill:none; }
+  #chainHero .ly:hover .bar, #chainHero .ly:focus-visible .bar { fill:color-mix(in srgb,var(--tc) 20%,transparent); stroke:var(--tc); stroke-width:1.4; }
+  #chainHero .ly:hover .lbl, #chainHero .ly:focus-visible .lbl, #chainHero .ly:hover .num { fill:var(--txt); }
+  #chainHero .ly:hover .lead, #chainHero .ly:focus-visible .lead { stroke:var(--tc); opacity:1; }
+  #chainHero .conn { flex:0 0 68px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+  #chainHero .conn .cl { width:100%; height:0; border-top:1px dashed var(--faint); transition:border-color .2s; }
+  #chainHero .conn .ct { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:var(--xmono); font-size:9.5px; letter-spacing:.1em; color:var(--dim); white-space:nowrap; background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:3px 9px; transition:color .2s,border-color .2s,box-shadow .2s; }
+  #chainHero .conn .cdot { position:absolute; width:5px; height:5px; border-radius:50%; background:var(--faint); top:50%; transform:translateY(-50%); transition:background .2s; }
+  #chainHero .conn .cdot.a { left:2px; } #chainHero .conn .cdot.b { right:2px; }
+  #chainHero .figs:hover .conn .cl { border-top-color:var(--cyan); }
+  #chainHero .figs:hover .conn .ct { color:var(--txt); border-color:color-mix(in srgb,var(--cyan) 55%,var(--line)); box-shadow:0 0 0 3px rgba(56,189,248,.08); }
+  #chainHero .figs:hover .conn .cdot { background:var(--cyan); }
+  @media (max-width:820px){
+    #chainHero .figs { flex-direction:column; }
+    #chainHero .fig { padding:0; }
+    #chainHero .conn { flex:0 0 52px; width:100%; }
+    #chainHero .conn .cl { width:0; height:100%; border-top:0; border-left:1px dashed var(--faint); }
+    #chainHero .figs:hover .conn .cl { border-left-color:var(--cyan); }
+    #chainHero .conn .cdot.a { left:50%; top:2px; transform:translateX(-50%); }
+    #chainHero .conn .cdot.b { left:50%; top:auto; bottom:2px; right:auto; transform:translateX(-50%); }
+  }
+  /* exploded-hero drawer */
+  .xd-scrim { position:fixed; inset:0; background:rgba(4,7,12,.55); opacity:0; visibility:hidden; transition:opacity .25s; z-index:40; }
+  .xd-scrim.on { opacity:1; visibility:visible; }
+  .xd-drawer { --faint:#5b6b86; --xmono:ui-monospace,Menlo,Consolas,monospace; position:fixed; top:0; right:0; height:100%; width:min(380px,92vw); z-index:50; background:var(--panel); border-left:1px solid var(--line); transform:translateX(100%); transition:transform .28s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; box-shadow:-20px 0 60px rgba(0,0,0,.4); }
+  .xd-drawer.on { transform:translateX(0); }
+  .xd-dhead { padding:20px 22px 14px; border-bottom:1px solid var(--line); position:relative; }
+  .xd-dhead .de { font-family:var(--xmono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--tc,var(--dim)); }
+  .xd-dhead h3 { margin:8px 0 0; font-size:19px; line-height:1.3; }
+  .xd-dx { position:absolute; top:16px; right:16px; width:30px; height:30px; border:1px solid var(--line); background:var(--panel2); color:var(--dim); border-radius:8px; cursor:pointer; font-size:14px; line-height:1; }
+  .xd-dx:hover { color:var(--txt); border-color:var(--faint); }
+  .xd-dbody { padding:6px 22px 30px; overflow:auto; }
+  .xd-sec { margin-top:20px; }
+  .xd-sec h4 { margin:0 0 10px; font-family:var(--xmono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
+  .xd-cos { display:flex; flex-wrap:wrap; gap:7px; }
+  .xd-co { border:1px solid var(--line); background:var(--panel2); border-radius:20px; padding:5px 12px; font-size:12.5px; }
+  .xd-news a { display:block; text-decoration:none; color:inherit; border:1px solid var(--line); background:var(--panel2); border-radius:10px; padding:11px 13px; margin-bottom:9px; transition:border-color .15s; }
+  .xd-news a:hover { border-color:var(--faint); }
+  .xd-news .nt { font-size:13.5px; font-weight:600; line-height:1.45; }
+  .xd-news .nm { color:var(--dim); font-size:11.5px; margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; }
+  .xd-empty { color:var(--dim); font-size:13px; padding:6px 0; }
+  .xd-more { display:inline-block; margin-top:8px; color:var(--acc); text-decoration:none; font-size:13px; }
 </style>
 </head>
 <body>
@@ -168,6 +238,8 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <div class="wrap">
   <aside id="nav"></aside>
   <main>
+    <!-- Exploded-view chain hero (top visual, home view only) -->
+    <div id="chainHero" style="display:none"></div>
     <!-- Top spotlight: video notes (shown only on the default home view) -->
     <div id="hero" style="display:none"></div>
     <!-- Supply-chain map entry banner -->
@@ -435,10 +507,113 @@ function isHome(){
 }
 function renderHome(){
   const home = isHome();
+  $("#chainHero").style.display = home ? "" : "none";
   $("#hero").style.display = (home && noteList.length) ? "" : "none";
   $("#mapban").style.display = home ? "flex" : "none";
   if(home && noteList.length) renderHero();
 }
+
+// ── Exploded-view chain hero (top homepage visual). Reusable, data-driven. ──
+const XD_DIAGRAMS = [
+  { fig:"FIG.001", tier:"Upstream", name:"Chip Package", color:"var(--up)", layers:[
+    { id:"u-lid",   n:"05", label:"Heat Spreader (Lid)",    seg:"cooling" },
+    { id:"u-pkg",   n:"04", label:"Adv. Packaging (CoWoS)", seg:"advanced_packaging" },
+    { id:"u-hbm",   n:"03", label:"HBM Memory Stack",       seg:"hbm_memory" },
+    { id:"u-die",   n:"02", label:"Compute Die (GPU)",      seg:"ai_compute_chip", core:true },
+    { id:"u-wafer", n:"01", label:"Wafer / Foundry",        seg:"foundry" },
+  ]},
+  { fig:"FIG.002", tier:"Midstream", name:"GPU Board", color:"var(--mid)", layers:[
+    { id:"m-fins", n:"05", label:"Heatsink Fins",        seg:"cooling" },
+    { id:"m-vrm",  n:"04", label:"Power Delivery (VRM)", seg:"power_energy" },
+    { id:"m-mem",  n:"03", label:"Memory (GDDR / HBM)",  seg:"hbm_memory" },
+    { id:"m-core", n:"02", label:"GPU Core",             seg:"ai_compute_chip", core:true },
+    { id:"m-pcb",  n:"01", label:"PCB Substrate",        seg:"advanced_packaging" },
+  ]},
+  { fig:"FIG.003", tier:"Downstream", name:"End Device", color:"var(--down)", layers:[
+    { id:"d-screen", n:"04", label:"Display",         seg:"ai_hardware" },
+    { id:"d-board",  n:"03", label:"Mainboard / SoC", seg:"ai_hardware", core:true },
+    { id:"d-batt",   n:"02", label:"Battery",         seg:"power_energy" },
+    { id:"d-shell",  n:"01", label:"Chassis",         seg:"ai_hardware" },
+  ]},
+];
+const XD_COMPANIES = {
+  "u-lid":["TSMC","ASE","Amkor"], "u-pkg":["TSMC","ASE","SPIL"], "u-hbm":["SK Hynix","Micron","Samsung"],
+  "u-die":["NVIDIA","AMD","Broadcom"], "u-wafer":["TSMC","Samsung Foundry","Intel"],
+  "m-fins":["Cooler Master","Auras","Vertiv"], "m-vrm":["Monolithic Power","Infineon","Vicor"],
+  "m-mem":["Samsung","Micron","SK Hynix"], "m-core":["NVIDIA","AMD","Intel"], "m-pcb":["Ibiden","Unimicron","AT&S"],
+  "d-screen":["Samsung Display","BOE","LG Display"], "d-board":["Apple","Qualcomm","MediaTek"],
+  "d-batt":["CATL","ATL","LG Energy"], "d-shell":["Foxconn","Luxshare","BYD Electronics"],
+};
+const XD_CONN = [{t:"Chip →"},{t:"Compute →"}];
+const XD_LAYER = {}, XD_TIER = {};
+XD_DIAGRAMS.forEach(d=>d.layers.forEach(L=>{ XD_LAYER[L.id]=L; XD_TIER[L.id]=d; }));
+
+function xdSVG(d){
+  const N=d.layers.length, VW=340, topPad=12, slot=48, barH=22, barX=26, barW=118, axisX=barX+barW/2;
+  const H=topPad+N*slot+8, t=7;
+  let s='<svg class="exploded" viewBox="0 0 '+VW+' '+H+'" role="img" aria-label="'+esc(d.tier)+' '+esc(d.name)+' exploded view">';
+  s+='<g class="reg"><path d="M2 '+t+' V2 H'+t+'"/><path d="M'+(VW-t)+' 2 H'+(VW-2)+' V'+t+'"/>'+
+     '<path d="M2 '+(H-t)+' V'+(H-2)+' H'+t+'"/><path d="M'+(VW-t)+' '+(H-2)+' H'+(VW-2)+' V'+(H-t)+'"/></g>';
+  s+='<line class="axis" x1="'+axisX+'" y1="'+(topPad-4)+'" x2="'+axisX+'" y2="'+(H-4)+'"/>';
+  d.layers.forEach((L,i)=>{
+    const y=topPad+i*slot, cy=y+barH/2, rx=barX+barW;
+    s+='<g class="ly" data-id="'+L.id+'" tabindex="0" role="button" aria-label="'+esc(L.label)+'">';
+    s+='<rect class="bar" x="'+barX+'" y="'+y+'" width="'+barW+'" height="'+barH+'" rx="4"/>';
+    s+='<line class="grip" x1="'+(barX+10)+'" y1="'+(y+6)+'" x2="'+(barX+10)+'" y2="'+(y+barH-6)+'"/>';
+    s+='<line class="grip" x1="'+(rx-10)+'" y1="'+(y+6)+'" x2="'+(rx-10)+'" y2="'+(y+barH-6)+'"/>';
+    s+='<text class="num" x="'+(barX-8)+'" y="'+(cy+3)+'" text-anchor="end">'+L.n+'</text>';
+    if(L.core) s+='<path class="core" d="M'+axisX+' '+(cy-4)+' l4 4 l-4 4 l-4 -4 z"/>';
+    s+='<path class="lead" d="M'+rx+' '+cy+' H'+(rx+16)+'"/>';
+    s+='<text class="lbl" x="'+(rx+24)+'" y="'+(cy+3)+'">'+esc(L.label)+'</text>';
+    s+='</g>';
+  });
+  return s+'</svg>';
+}
+function buildChainHero(){
+  const host = $("#chainHero"); if(!host || host.dataset.built) return;
+  let h = '<div class="xeye">AIChain · Assembly Reference</div>'+
+    '<h2 class="xtitle">The AI supply chain, <b>exploded</b>.</h2>'+
+    '<p class="xsub">Upstream chip package → midstream GPU board → downstream device — dismantled layer by layer and linked into one chain. Click any layer for its companies and latest news.</p>'+
+    '<div class="figs">';
+  XD_DIAGRAMS.forEach((d,i)=>{
+    h += '<div class="fig" style="--tc:'+d.color+'"><div class="fighead"><span class="code">'+d.fig+'</span> · <span class="tier">'+esc(d.tier)+'</span>'+
+      '<div class="name">'+esc(d.name)+'</div></div><div class="figcard">'+xdSVG(d)+'</div></div>';
+    if(i<XD_DIAGRAMS.length-1) h += '<div class="conn"><span class="cdot a"></span><span class="cl"></span><span class="cdot b"></span><span class="ct">'+XD_CONN[i].t+'</span></div>';
+  });
+  h += '</div>';
+  host.innerHTML = h; host.dataset.built = "1";
+  host.addEventListener("click", e=>{ const g=e.target.closest(".ly"); if(g) xdOpen(g.dataset.id); });
+  host.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ const g=e.target.closest(".ly"); if(g){ e.preventDefault(); xdOpen(g.dataset.id); } } });
+  // drawer + scrim (created once, appended to body)
+  const dr = document.createElement("aside"); dr.className="xd-drawer"; dr.id="xdDrawer"; dr.setAttribute("role","dialog"); dr.setAttribute("aria-modal","true");
+  dr.innerHTML = '<div class="xd-dhead"><button class="xd-dx" id="xdX" aria-label="Close">✕</button><div class="de" id="xdEye"></div><h3 id="xdTitle"></h3></div>'+
+    '<div class="xd-dbody"><div class="xd-sec"><h4>Companies</h4><div class="xd-cos" id="xdCos"></div></div>'+
+    '<div class="xd-sec"><h4>Latest news</h4><div class="xd-news" id="xdNews"></div></div></div>';
+  const sc = document.createElement("div"); sc.className="xd-scrim"; sc.id="xdScrim";
+  document.body.appendChild(sc); document.body.appendChild(dr);
+  sc.onclick = xdClose; $("#xdX").onclick = xdClose;
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape") xdClose(); });
+}
+function xdOpen(id){
+  const L=XD_LAYER[id], d=XD_TIER[id]; if(!L) return;
+  $("#xdDrawer").style.setProperty("--tc", d.color);
+  $("#xdEye").textContent = d.fig+" · "+d.tier;
+  $("#xdTitle").textContent = L.label;
+  $("#xdCos").innerHTML = (XD_COMPANIES[id]||[]).map(c=>'<span class="xd-co">'+esc(c)+'</span>').join("") || '<span class="xd-empty">—</span>';
+  $("#xdNews").innerHTML = '<span class="xd-empty">Loading…</span>';
+  $("#xdScrim").classList.add("on"); $("#xdDrawer").classList.add("on");
+  if(L.seg){
+    fetch("/api/news?segment="+encodeURIComponent(L.seg)+"&limit=6").then(r=>r.json()).then(list=>{
+      const more = '<a class="xd-more" href="/?segment='+encodeURIComponent(L.seg)+'">See all in this segment →</a>';
+      if(!Array.isArray(list) || !list.length){ $("#xdNews").innerHTML = '<div class="xd-empty">No recent news in this segment yet.</div>'+more; return; }
+      $("#xdNews").innerHTML = list.slice(0,6).map(a=>{ const tt=a.title_zh||a.title;
+        return '<a href="'+a.link+'" target="_blank" rel="noopener"><div class="nt">'+esc(tt)+'</div>'+
+          '<div class="nm"><span>'+esc(a.source||"")+'</span><span>·</span><span>'+timeAgo(a.published_at)+'</span></div></a>';
+      }).join("") + more;
+    }).catch(()=>{ $("#xdNews").innerHTML = '<div class="xd-empty">Couldn’t load news right now.</div>'; });
+  } else { $("#xdNews").innerHTML = '<div class="xd-empty">No dedicated news segment for this layer.</div>'; }
+}
+function xdClose(){ const d=$("#xdDrawer"), s=$("#xdScrim"); if(d) d.classList.remove("on"); if(s) s.classList.remove("on"); }
 function renderHero(){
   // Home spotlight shows only "Market Views" (AI How-To/tutorials live under their tab in the notes list)
   const top = noteList.filter(n=>noteCatOf(n)==="invest").slice(0,3); // latest 3
@@ -730,7 +905,7 @@ $("#refreshBtn").onclick = async ()=>{
 })();
 
 const _q = new URLSearchParams(location.search).get("q"); if(_q) $("#q").value = _q;
-applyI18n(); loadStats(); loadNotes(); load();
+applyI18n(); buildChainHero(); loadStats(); loadNotes(); load();
 </script>
 </body>
 </html>`;

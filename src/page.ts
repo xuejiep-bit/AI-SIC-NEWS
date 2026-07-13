@@ -16,6 +16,7 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
 <meta property="og:url" content="https://ai.vid2quiz.com/" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>AIChain — Real-time AI Supply-Chain News</title>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"AIChain","url":"https://ai.vid2quiz.com/","description":"Real-time intelligence on the global AI supply chain."},{"@type":"WebSite","name":"AIChain","url":"https://ai.vid2quiz.com/","inLanguage":"en","description":"News from upstream compute chips to downstream apps, video notes, an industry-chain map, and value-analysis tools."}]}</script>
 <style>
   :root {
     --bg: #0b0e14; --panel: #131826; --panel2: #1a2030; --line: #232a3d;

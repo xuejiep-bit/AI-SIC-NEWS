@@ -1,14 +1,27 @@
-// 笔记独立阅读页（/note?id=xxx）：单篇深度笔记全幅展示，可单独分享。
-// 数据来自 /api/vidnotes，关联环节名称来自 /api/mapdata（seg key → 中文名 + 跳地图）。
+// Single-note reading page (/note?id=xxx): full server-side render for SEO.
+// Each note gets its own <title>, meta description, canonical, Open Graph tags,
+// a NewsArticle JSON-LD block, and the article body rendered in HTML (crawlable
+// without JS). Segment names come from taxonomy (no client fetch needed).
 
-export const NOTE_HTML = /* html */ `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>The Big Picture · AIChain</title>
-<style>
+import type { VidNote } from "./vidnotes";
+import { SEGMENTS } from "./taxonomy";
+
+const SEG_EN: Record<string, string> = Object.fromEntries(SEGMENTS.map((s) => [s.key, s.en]));
+
+function esc(s: string): string {
+  return (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+}
+function escAttr(s: string): string {
+  return esc(s).replace(/'/g, "&#39;");
+}
+// Plain-text, truncated description for <meta>/OG (~155 chars).
+function metaDescription(n: VidNote): string {
+  const src = (n.takeaways && n.takeaways.length ? n.takeaways.join(" ") : (n.summary || "").replace(/\n/g, " ")).trim();
+  const t = src.replace(/\s+/g, " ").replace(/\*\*/g, "");
+  return t.length > 155 ? t.slice(0, 152).trimEnd() + "…" : t;
+}
+
+const STYLE = /* css */ `
   :root { --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;
     --txt:#e6e9f0; --dim:#8a93a8; --acc:#4f8cff; --acc2:#36d399; --invest:#f5b301; }
   * { box-sizing:border-box; }
@@ -38,8 +51,18 @@ export const NOTE_HTML = /* html */ `<!DOCTYPE html>
     border-radius:0 10px 10px 0; padding:11px 15px; margin-bottom:9px; line-height:1.65; font-size:14px; }
   .full p { line-height:1.85; font-size:15px; margin:0 0 15px; color:#dfe3ec; }
   .src { color:var(--dim); font-size:12px; border-top:1px solid var(--line); padding-top:14px; margin-top:24px; }
-  #loading { color:var(--dim); padding:40px 0; text-align:center; }
-</style>
+  .notfound { color:var(--dim); padding:50px 0; text-align:center; }
+`;
+
+function shell(head: string, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+${head}
+<style>${STYLE}</style>
 </head>
 <body>
 <header>
@@ -48,49 +71,75 @@ export const NOTE_HTML = /* html */ `<!DOCTYPE html>
   <a class="back" href="/?notes=1">← All notes</a>
 </header>
 <div class="wrap">
-  <div id="loading">Loading…</div>
-  <article id="article" style="display:none"></article>
+${body}
 </div>
-<script>
-const $ = s => document.querySelector(s);
-function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-
-async function init(){
-  const id = new URLSearchParams(location.search).get("id");
-  let notes = [], segNames = {};
-  try{
-    const [vn, md] = await Promise.all([
-      fetch("/api/vidnotes").then(r=>r.json()),
-      fetch("/api/mapdata").then(r=>r.json()).catch(()=>({nodes:[]})),
-    ]);
-    notes = Array.isArray(vn) ? vn : [];
-    (md.nodes||[]).forEach(n=>{ segNames[n.id] = n.name; });
-  }catch(e){}
-  const n = notes.find(x=>x.id===id);
-  if(!n){ $("#loading").textContent = "This note could not be found."; return; }
-  document.title = n.title + " · AIChain";
-
-  const catLabel = n.category==="howto" ? "🛠️ AI How-To" : "💡 Market Views";
-  const catChip = '<span class="chip" style="background:'+(n.category==="howto"?"#4f8cff":"var(--invest)")+';color:'+(n.category==="howto"?"#fff":"#1a1a1a")+'">'+catLabel+'</span>';
-  const tks = (n.tickers||[]).map(t=>'<span class="chip">'+esc(t)+'</span>').join("");
-  const segs = (n.segs||[]).map(s=>'<a class="seglink" href="/map">🔗 '+esc(segNames[s]||s)+'</a>').join("");
-  const chips = '<div class="chips">'+catChip+tks+segs+'</div>';
-  const pts = (n.takeaways||[]).map(p=>'<li>'+esc(p)+'</li>').join("");
-  const paras = (n.summary||"").split("\\n").filter(s=>s.trim()).map(s=>'<p>'+esc(s)+'</p>').join("");
-
-  $("#article").innerHTML =
-    '<h1 class="title">'+esc(n.title)+'</h1>'+
-    '<div class="meta"><span>'+esc(n.channel)+'</span><span>·</span><span>'+esc(n.date)+'</span>'+
-      '<span>·</span><span>'+esc(n.videoTitle||"")+'</span></div>'+
-    (n.url?'<a class="watch" href="'+esc(n.url)+'" target="_blank" rel="noopener">▶ Watch original</a>':"")+
-    chips +
-    (pts?'<h2 class="sec">📌 Key Takeaways</h2><ul class="pts">'+pts+'</ul>':"")+
-    (paras?'<h2 class="sec">📝 Full Breakdown</h2><div class="full">'+paras+'</div>':"")+
-    '<div class="src">Summary of key points from a public video. Not investment advice; rights belong to the original authors.</div>';
-  $("#loading").style.display = "none";
-  $("#article").style.display = "block";
-}
-init();
-</script>
 </body>
 </html>`;
+}
+
+// Build the full HTML for /note?id=. `origin` is the https site origin (no trailing slash).
+export function renderNotePage(note: VidNote | null, origin: string): string {
+  if (!note) {
+    const head =
+      `<title>Note not found · AIChain</title>\n` +
+      `<meta name="robots" content="noindex" />`;
+    return shell(head, `<div class="notfound">This note could not be found. <a class="seglink" href="/?notes=1">Browse all notes →</a></div>`);
+  }
+
+  const canonical = `${origin}/note?id=${encodeURIComponent(note.id)}`;
+  const desc = metaDescription(note);
+  const title = `${note.title} · AIChain`;
+
+  // JSON-LD NewsArticle (escape "<" so it can't break out of the script tag)
+  const jsonld = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: note.title,
+    description: desc,
+    datePublished: note.date,
+    dateModified: note.date,
+    url: canonical,
+    mainEntityOfPage: canonical,
+    inLanguage: "en",
+    author: { "@type": "Organization", name: note.channel },
+    publisher: { "@type": "Organization", name: "AIChain" },
+    isBasedOn: note.url || undefined,
+    keywords: (note.tickers || []).concat((note.segs || []).map((s) => SEG_EN[s] || s)).join(", ") || undefined,
+  }).replace(/</g, "\\u003c");
+
+  const head =
+    `<title>${esc(title)}</title>\n` +
+    `<meta name="description" content="${escAttr(desc)}" />\n` +
+    `<link rel="canonical" href="${escAttr(canonical)}" />\n` +
+    `<meta property="og:type" content="article" />\n` +
+    `<meta property="og:site_name" content="AIChain" />\n` +
+    `<meta property="og:title" content="${escAttr(note.title)}" />\n` +
+    `<meta property="og:description" content="${escAttr(desc)}" />\n` +
+    `<meta property="og:url" content="${escAttr(canonical)}" />\n` +
+    `<meta property="article:published_time" content="${escAttr(note.date)}" />\n` +
+    `<meta name="twitter:card" content="summary" />\n` +
+    `<script type="application/ld+json">${jsonld}</script>`;
+
+  const catLabel = note.category === "howto" ? "🛠️ AI How-To" : "💡 Market Views";
+  const catBg = note.category === "howto" ? "#4f8cff" : "var(--invest)";
+  const catFg = note.category === "howto" ? "#fff" : "#1a1a1a";
+  const catChip = `<span class="chip" style="background:${catBg};color:${catFg}">${esc(catLabel)}</span>`;
+  const tks = (note.tickers || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("");
+  const segs = (note.segs || []).map((s) => `<a class="seglink" href="/map">🔗 ${esc(SEG_EN[s] || s)}</a>`).join("");
+  const pts = (note.takeaways || []).map((p) => `<li>${esc(p)}</li>`).join("");
+  const paras = (note.summary || "").split("\n").filter((s) => s.trim()).map((s) => `<p>${esc(s)}</p>`).join("");
+
+  const body =
+    `<article>` +
+    `<h1 class="title">${esc(note.title)}</h1>` +
+    `<div class="meta"><span>${esc(note.channel)}</span><span>·</span><span>${esc(note.date)}</span>` +
+    (note.videoTitle ? `<span>·</span><span>${esc(note.videoTitle)}</span>` : ``) + `</div>` +
+    (note.url ? `<a class="watch" href="${escAttr(note.url)}" target="_blank" rel="noopener">▶ Watch original</a>` : ``) +
+    `<div class="chips">${catChip}${tks}${segs}</div>` +
+    (pts ? `<h2 class="sec">📌 Key Takeaways</h2><ul class="pts">${pts}</ul>` : ``) +
+    (paras ? `<h2 class="sec">📝 Full Breakdown</h2><div class="full">${paras}</div>` : ``) +
+    `<div class="src">Summary of key points from a public video. Not investment advice; rights belong to the original authors.</div>` +
+    `</article>`;
+
+  return shell(head, body);
+}

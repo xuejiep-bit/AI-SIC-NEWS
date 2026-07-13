@@ -4,13 +4,12 @@ import { classify } from "./classify";
 import { scoreValue } from "./picks";
 import { aiClassify, type AiInput } from "./ai";
 import { investClause } from "./invest";
-import { LAYERS, SEGMENTS } from "./taxonomy";
 import { PAGE_HTML } from "./page";
 import { MAP_HTML } from "./mappage";
 import MAP_CONFIG from "./mapconfig.json";
 import { VID_NOTES } from "./vidnotes";
 import { TOOLS_HTML } from "./toolspage";
-import { NOTE_HTML } from "./notepage";
+import { renderNotePage } from "./notepage";
 import { generateGrahamReport } from "./graham";
 import { generateCanslimReport, computeUniverseReturns } from "./canslim";
 import { generateTurtleReport } from "./turtle";
@@ -346,16 +345,18 @@ async function reclassifyAll(env: Env): Promise<{ scanned: number; updated: numb
 // ── SEO: sitemap & robots ─────────────────────────────
 function sitemapXml(origin: string): string {
   const today = new Date().toISOString().slice(0, 10);
-  const urls: string[] = [origin + "/", origin + "/map"];
-  for (const L of LAYERS) if (L.key !== "other") urls.push(`${origin}/?layer=${L.key}`);
-  urls.push(`${origin}/?invest=1`);
-  urls.push(`${origin}/?layer=video`);
-  urls.push(`${origin}/?layer=video_invest`);
-  for (const s of SEGMENTS) urls.push(`${origin}/?segment=${s.key}`);
-  const body = urls
-    .map((u) => `  <url><loc>${u}</loc><lastmod>${today}</lastmod><changefreq>hourly</changefreq></url>`)
-    .join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>`;
+  // Core pages (frequently updated) + the real content pages: each Video Note.
+  // Filter URLs (?layer=/?segment=) are omitted — they canonicalize to "/" and hold no unique content.
+  const rows: string[] = [];
+  const page = (loc: string, lastmod: string, freq: string) =>
+    rows.push(`  <url><loc>${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>${freq}</changefreq></url>`);
+  page(origin + "/", today, "hourly");
+  page(origin + "/map", today, "weekly");
+  page(origin + "/tools", today, "monthly");
+  for (const n of VID_NOTES) {
+    page(`${origin}/note?id=${encodeURIComponent(n.id)}`, n.date || today, "monthly");
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.join("\n")}\n</urlset>`;
 }
 
 function robotsTxt(origin: string): string {
@@ -390,8 +391,15 @@ export default {
         return json(MAP_CONFIG);
       }
       if (path === "/note") {
-        // 单篇深度笔记阅读页（前端按 ?id= 从 /api/vidnotes 取数渲染）
-        return new Response(NOTE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+        // Server-rendered single-note page (per-note SEO: title/description/canonical/OG + JSON-LD + body)
+        const noteId = url.searchParams.get("id") || "";
+        const note = VID_NOTES.find((n) => n.id === noteId) || null;
+        const origin = url.origin.replace(/^http:/, "https:");
+        const notFound = !note;
+        return new Response(renderNotePage(note, origin), {
+          status: notFound ? 404 : 200,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
       }
       if (path === "/tools") {
         // 投资分析工具页（阶段1: Graham；CAN SLIM / 海龟 后续接入）

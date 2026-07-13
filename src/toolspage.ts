@@ -15,7 +15,11 @@ export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
 <meta property="og:title" content="Stock Analysis Tools — AIChain" />
 <meta property="og:description" content="Graham, CAN SLIM and Turtle strategy reports for US & HK stocks. Enter a ticker, get a teaching-style analysis in seconds." />
 <meta property="og:url" content="https://ai.vid2quiz.com/tools" />
+<meta property="og:image" content="https://ai.vid2quiz.com/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://ai.vid2quiz.com/og.png" />
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"AIChain Stock Analysis Tools","url":"https://ai.vid2quiz.com/tools","applicationCategory":"FinanceApplication","operatingSystem":"Web","inLanguage":"en","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Teaching-style stock analysis for US and Hong Kong equities using the Graham value, CAN SLIM growth-momentum, and Turtle trend-following strategies. Data from Yahoo Finance; not investment advice.","isPartOf":{"@type":"WebSite","name":"AIChain","url":"https://ai.vid2quiz.com/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://ai.vid2quiz.com/"},{"@type":"ListItem","position":2,"name":"Analysis Tools","item":"https://ai.vid2quiz.com/tools"}]}</script>
 <style>
   :root { --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;
     --txt:#e6e9f0; --dim:#8a93a8; --acc:#4f8cff; --acc2:#36d399; --invest:#f5b301; }

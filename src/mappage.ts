@@ -17,7 +17,11 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
 <meta property="og:title" content="AI Supply-Chain Map — AIChain" />
 <meta property="og:description" content="Upstream chips & infrastructure → midstream models → downstream apps. An interactive map of the whole AI industry chain." />
 <meta property="og:url" content="https://ai.vid2quiz.com/map" />
+<meta property="og:image" content="https://ai.vid2quiz.com/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://ai.vid2quiz.com/og.png" />
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"AI Supply-Chain Map","url":"https://ai.vid2quiz.com/map","inLanguage":"en","description":"An interactive map of the AI supply chain from upstream compute chips to downstream applications, with a plain-English primer, representative companies, and the latest news for each segment.","isPartOf":{"@type":"WebSite","name":"AIChain","url":"https://ai.vid2quiz.com/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://ai.vid2quiz.com/"},{"@type":"ListItem","position":2,"name":"Supply-Chain Map","item":"https://ai.vid2quiz.com/map"}]}</script>
 <style>
   :root {
     --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;

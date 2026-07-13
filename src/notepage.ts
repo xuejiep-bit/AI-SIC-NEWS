@@ -107,6 +107,17 @@ export function renderNotePage(note: VidNote | null, origin: string): string {
     keywords: (note.tickers || []).concat((note.segs || []).map((s) => SEG_EN[s] || s)).join(", ") || undefined,
   }).replace(/</g, "\\u003c");
 
+  const ogImage = `${origin}/og.png`;
+  const breadcrumb = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
+      { "@type": "ListItem", position: 2, name: "Video Notes", item: `${origin}/?notes=1` },
+      { "@type": "ListItem", position: 3, name: note.title, item: canonical },
+    ],
+  }).replace(/</g, "\\u003c");
+
   const head =
     `<title>${esc(title)}</title>\n` +
     `<meta name="description" content="${escAttr(desc)}" />\n` +
@@ -116,9 +127,12 @@ export function renderNotePage(note: VidNote | null, origin: string): string {
     `<meta property="og:title" content="${escAttr(note.title)}" />\n` +
     `<meta property="og:description" content="${escAttr(desc)}" />\n` +
     `<meta property="og:url" content="${escAttr(canonical)}" />\n` +
+    `<meta property="og:image" content="${escAttr(ogImage)}" />\n` +
     `<meta property="article:published_time" content="${escAttr(note.date)}" />\n` +
-    `<meta name="twitter:card" content="summary" />\n` +
-    `<script type="application/ld+json">${jsonld}</script>`;
+    `<meta name="twitter:card" content="summary_large_image" />\n` +
+    `<meta name="twitter:image" content="${escAttr(ogImage)}" />\n` +
+    `<script type="application/ld+json">${jsonld}</script>\n` +
+    `<script type="application/ld+json">${breadcrumb}</script>`;
 
   const catLabel = note.category === "howto" ? "🛠️ AI How-To" : "💡 Market Views";
   const catBg = note.category === "howto" ? "#4f8cff" : "var(--invest)";

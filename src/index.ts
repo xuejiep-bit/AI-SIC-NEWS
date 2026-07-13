@@ -10,6 +10,7 @@ import MAP_CONFIG from "./mapconfig.json";
 import { VID_NOTES } from "./vidnotes";
 import { TOOLS_HTML } from "./toolspage";
 import { renderNotePage } from "./notepage";
+import { OG_PNG_BASE64 } from "./ogimage";
 import { generateGrahamReport } from "./graham";
 import { generateCanslimReport, computeUniverseReturns } from "./canslim";
 import { generateTurtleReport } from "./turtle";
@@ -201,6 +202,11 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
     deleted = res.meta?.changes ?? 0;
   }
 
+  // English-only site: purge any non-English articles (legacy Chinese content from removed sources).
+  // All current feeds are lang="en", so after the first run this is a no-op.
+  const nonEn = await env.DB.prepare(`DELETE FROM articles WHERE lang <> 'en'`).run();
+  deleted += nonEn.meta?.changes ?? 0;
+
   return { feeds: ALL_FEEDS.length, fetched, newItems: newItems.length, upserted, aiUsed, deleted, errors };
 }
 
@@ -379,8 +385,14 @@ export default {
 
     try {
       if (path === "/" || path === "/index.html") {
-        // 全站统一中文，不再有语言/版本切换。
         return new Response(PAGE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+      if (path === "/og.png") {
+        // Static Open Graph share image (embedded base64).
+        const bin = Uint8Array.from(atob(OG_PNG_BASE64), (c) => c.charCodeAt(0));
+        return new Response(bin, {
+          headers: { "content-type": "image/png", "cache-control": "public, max-age=604800" },
+        });
       }
       if (path === "/map") {
         // AI 产业链地图页。节点文案/公司列表在 src/mapconfig.json 维护。

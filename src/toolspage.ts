@@ -7,7 +7,15 @@ export const TOOLS_HTML = /* html */ `<!DOCTYPE html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-<title>Analysis Tools · AIChain</title>
+<title>Stock Analysis Tools · AIChain</title>
+<meta name="description" content="Free teaching-style stock analysis for US and Hong Kong equities — Graham value, CAN SLIM growth-momentum, and Turtle trend-following strategies. Enter a ticker and get a plain-English report. Data from Yahoo Finance; not investment advice." />
+<link rel="canonical" href="https://ai.vid2quiz.com/tools" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="AIChain" />
+<meta property="og:title" content="Stock Analysis Tools — AIChain" />
+<meta property="og:description" content="Graham, CAN SLIM and Turtle strategy reports for US & HK stocks. Enter a ticker, get a teaching-style analysis in seconds." />
+<meta property="og:url" content="https://ai.vid2quiz.com/tools" />
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"AIChain Stock Analysis Tools","url":"https://ai.vid2quiz.com/tools","applicationCategory":"FinanceApplication","operatingSystem":"Web","inLanguage":"en","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Teaching-style stock analysis for US and Hong Kong equities using the Graham value, CAN SLIM growth-momentum, and Turtle trend-following strategies. Data from Yahoo Finance; not investment advice.","isPartOf":{"@type":"WebSite","name":"AIChain","url":"https://ai.vid2quiz.com/"}}</script>
 <style>
   :root { --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;
     --txt:#e6e9f0; --dim:#8a93a8; --acc:#4f8cff; --acc2:#36d399; --invest:#f5b301; }

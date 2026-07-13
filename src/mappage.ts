@@ -10,6 +10,14 @@ export const MAP_HTML = /* html */ `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>AI Supply-Chain Map · AIChain</title>
+<meta name="description" content="An interactive map of the AI supply chain — upstream (chips, equipment, data centers, power) → midstream (models) → downstream (apps). Click any node for a plain-English primer, representative companies, and the latest news." />
+<link rel="canonical" href="https://ai.vid2quiz.com/map" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="AIChain" />
+<meta property="og:title" content="AI Supply-Chain Map — AIChain" />
+<meta property="og:description" content="Upstream chips & infrastructure → midstream models → downstream apps. An interactive map of the whole AI industry chain." />
+<meta property="og:url" content="https://ai.vid2quiz.com/map" />
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"AI Supply-Chain Map","url":"https://ai.vid2quiz.com/map","inLanguage":"en","description":"An interactive map of the AI supply chain from upstream compute chips to downstream applications, with a plain-English primer, representative companies, and the latest news for each segment.","isPartOf":{"@type":"WebSite","name":"AIChain","url":"https://ai.vid2quiz.com/"}}</script>
 <style>
   :root {
     --bg:#0b0e14; --panel:#131826; --panel2:#1a2030; --line:#232a3d;

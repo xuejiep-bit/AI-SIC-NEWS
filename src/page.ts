@@ -868,9 +868,11 @@ function renderEarnings(){
 $("#earnBtn").onclick = ()=>{ setView(view==="news"?"earnings":"news"); };
 $("#q").oninput = (()=>{ let tmr; return ()=>{ clearTimeout(tmr);
   tmr=setTimeout(()=>{ view==="earnings" ? renderEarnings() : load(); },300); }; })();
+// 刷新按钮只重新拉取已入库的数据。抓取入库由 Cron 定时执行；
+// /api/refresh 已改为令牌保护的管理接口，不再由前端触发（防止访客/爬虫刷爆 D1 写入额度）。
 $("#refreshBtn").onclick = async ()=>{
   $("#status").textContent = t("refreshing"); $("#refreshBtn").disabled = true;
-  try{ await fetch("/api/refresh"); await loadStats(); await load(); }
+  try{ await loadStats(); await load(); }
   catch(e){ $("#status").textContent = String(e); }
   $("#refreshBtn").disabled = false;
 };

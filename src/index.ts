@@ -1,4 +1,4 @@
-import { ALL_FEEDS } from "./feeds";
+import { ALL_FEEDS, EXTRA_SOURCES } from "./feeds";
 import { parseFeed } from "./rss";
 import { classify } from "./classify";
 import { scoreValue } from "./picks";
@@ -318,11 +318,17 @@ async function backfillValueScores(env: Env, limit = 1500): Promise<number> {
 }
 
 async function queryStats(env: Env, url: URL) {
-  // 资讯统计：排除视频；可叠加地区/语言过滤，让侧栏计数与列表一致
+  // 资讯统计：排除视频；可叠加地区/语言过滤，让计数与列表一致。
+  // ?hours=N 限定统计窗口（首页热力图用它展示「近 N 小时的资讯热度」）；省略则统计全部留存资讯。
   const lang = url.searchParams.get("lang");
   const region = url.searchParams.get("region");
   const conds = [NOT_VIDEO];
   const binds: unknown[] = [];
+  const hoursRaw = parseInt(url.searchParams.get("hours") || "", 10);
+  if (Number.isFinite(hoursRaw) && hoursRaw > 0) {
+    conds.push("published_at >= ?");
+    binds.push(Date.now() - Math.min(hoursRaw, 720) * 3600 * 1000);
+  }
   if (region === "cn" || region === "global") { conds.push("region = ?"); binds.push(region); }
   if (lang && lang !== "all") { conds.push("lang = ?"); binds.push(lang); }
   const cond = "WHERE " + conds.join(" AND ");
@@ -344,6 +350,38 @@ async function queryStats(env: Env, url: URL) {
 
   return { total: total?.n ?? 0, invest: investRow?.n ?? 0, video: videoRow?.n ?? 0,
     videoInvest: videoInvestRow?.n ?? 0, breakdown: results };
+}
+
+// ── 信息来源清单（首页「Sources」板块）────────────────
+// 直接由 feeds.ts 派生，保证页面上展示的站点与真正在抓的源永远一致：
+// 增删数据源只需改 feeds.ts，前端无需同步维护第二份名单。纯静态响应，不查库。
+const SOURCE_GROUPS: { key: string; label: string }[] = [
+  { key: "lab", label: "AI Labs & Official Blogs" },
+  { key: "media", label: "Tech & AI Media" },
+  { key: "semi", label: "Semiconductors & Hardware" },
+  { key: "finance", label: "Financial Media" },
+  { key: "video", label: "AI & Tech Video Channels" },
+  { key: "video_invest", label: "Investing Video Channels" },
+];
+
+function sourceList() {
+  const bucket: Record<string, { name: string; site: string; fetched: boolean }[]> = {};
+  const seen = new Set<string>();
+  const add = (cat: string, name: string, site: string, fetched: boolean) => {
+    if (!site || seen.has(site)) return; // 同一站点可能既是抓取源又在 EXTRA_SOURCES 里，去重
+    seen.add(site);
+    (bucket[cat] ||= []).push({ name, site, fetched });
+  };
+  for (const f of ALL_FEEDS) {
+    const cat = f.kind === "video" || f.kind === "video_invest" ? f.kind : f.cat || "media";
+    let site = f.site;
+    if (!site) { try { site = new URL(f.url).origin; } catch { site = ""; } }
+    add(cat, f.name, site || "", true);
+  }
+  for (const s of EXTRA_SOURCES) add(s.cat, s.name, s.site, false);
+  return SOURCE_GROUPS
+    .filter((g) => bucket[g.key]?.length)
+    .map((g) => ({ key: g.key, label: g.label, items: bucket[g.key] }));
 }
 
 // 用关键词分类重新归类全部资讯（视频除外）。分类体系调整后跑一次，把存量文章重分到新板块。
@@ -523,6 +561,12 @@ export default {
             "content-type": "text/csv; charset=utf-8",
             "content-disposition": "attachment; filename=subscribers.csv",
           },
+        });
+      }
+      if (path === "/api/sources") {
+        // 首页「Sources」板块：来源站点清单（静态，无 DB 查询），可长缓存。
+        return new Response(JSON.stringify(sourceList()), {
+          headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=3600" },
         });
       }
       if (path === "/api/news") return json(await queryNews(env, url));

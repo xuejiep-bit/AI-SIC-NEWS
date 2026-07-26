@@ -17,6 +17,14 @@
 
 分类逻辑见 `src/taxonomy.ts`（关键词词典）与 `src/classify.ts`（打分匹配）。想调整归类，编辑关键词即可。
 
+## 首页结构
+
+首页只有三段，没有侧栏分类导航：
+
+1. **🔥 Supply-Chain Heat** —— 产业链 24 个细分环节的资讯热度（近 48 小时的真实条数，颜色越深越热）。点任一格子，抽屉里给出该环节的代表公司和最新报道。
+2. **🔥 Hottest right now** —— 全站唯一的资讯列表：按重要性打分排序的最热 30 条，可用 More / Balanced / Top only 调档，搜索框在已加载的列表里本地过滤。
+3. **📡 Sources** —— 全部信息来源站点的网址，按「AI 实验室 / 科技媒体 / 半导体 / 财经媒体 / 视频频道」分组。绿点＝已自动抓取，灰点＝只做外链（无公开 RSS）。名单由 `/api/sources` 从 `src/feeds.ts` 派生，增删数据源只改 `feeds.ts` 一处即可。
+
 ## 国内版 / 国际版
 
 网站分两支，按访问者 IP 自动选默认版本（中国大陆 IP → 国内版），右上角按钮可手动切换并记忆；分享时可用 `?region=cn` / `?region=global` 直达指定版本。
@@ -100,7 +108,9 @@ D1 按「行写入」计费，且每插入/删除 1 行数据，表上的每个�
 |------|------|
 | `GET /` | 双语网站首页 |
 | `GET /api/news?layer=&segment=&lang=&q=&limit=` | 资讯列表（JSON），支持按层级/环节/语言/关键词筛选 |
-| `GET /api/stats` | 各层级 / 环节的资讯计数 |
+| `GET /api/picks?min=&hours=&limit=` | 最热资讯（按重要性打分排序），首页主列表用 |
+| `GET /api/stats?hours=` | 各层级 / 环节的资讯计数；`hours=` 限定统计窗口，首页热力图用 |
+| `GET /api/sources` | 信息来源站点清单（由 `src/feeds.ts` 派生），首页 Sources 板块用 |
 | `GET /api/refresh?token=` | 手动触发抓取（管理接口：必须配置 REFRESH_TOKEN，否则关闭） |
 
 ## 后续可扩展

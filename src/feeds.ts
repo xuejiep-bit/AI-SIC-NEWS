@@ -3,11 +3,16 @@
 // 不同站点的 RSS 可用性会随时间变化 —— 失效的源会在抓取时被静默跳过（见 index.ts），
 // 不影响其它源。想增删来源，直接编辑此文件即可。
 
+// 来源分组 key，用于首页「Sources」板块归类展示（视频类另按 kind 归组）。
+export type SourceCat = "lab" | "media" | "semi" | "finance";
+
 export interface Feed {
   name: string;
   url: string;
   lang: "zh" | "en";
   kind?: "news" | "video" | "video_invest"; // 默认 news；video = AI/科技视频，video_invest = 财经/投资视频
+  site?: string;   // 来源站点主页（首页 Sources 板块展示用）。省略时取 url 的 origin。
+  cat?: SourceCat; // 来源分组，默认 "media"
 }
 
 // 用 Google News 站内检索某来源里「AI 产业链」相关报道（拿标题+链接，正文跳原站）。
@@ -19,34 +24,37 @@ const GNEWS = (name: string, lang: "zh" | "en", site: string): Feed => {
       ? `(AI OR 人工智能 OR 芯片 OR 半导体 OR 算力 OR 大模型 OR 英伟达) site:${site}`
       : `(AI OR "artificial intelligence" OR semiconductor OR chip OR GPU OR "data center" OR Nvidia) site:${site}`;
   const ceid = lang === "zh" ? "hl=zh-CN&gl=CN&ceid=CN:zh-Hans" : "hl=en-US&gl=US&ceid=US:en";
-  return { name, url: `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&${ceid}`, lang };
+  return {
+    name, lang, cat: "finance", site: `https://${site}`,
+    url: `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&${ceid}`,
+  };
 };
 
 export const FEEDS: Feed[] = [
   // ── 英文 · 综合科技 / AI ────────────────────────────
-  { name: "TechCrunch", url: "https://techcrunch.com/feed/", lang: "en" },
-  { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", lang: "en" },
-  { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", lang: "en" },
-  { name: "VentureBeat AI", url: "https://venturebeat.com/category/ai/feed/", lang: "en" },
-  { name: "MIT Technology Review", url: "https://www.technologyreview.com/feed/", lang: "en" },
-  { name: "The Register", url: "https://www.theregister.com/headlines.atom", lang: "en" },
-  { name: "Hacker News", url: "https://hnrss.org/frontpage", lang: "en" },
-  { name: "The Decoder", url: "https://the-decoder.com/feed/", lang: "en" },
-  { name: "IEEE Spectrum", url: "https://spectrum.ieee.org/feeds/feed.rss", lang: "en" },
+  { name: "TechCrunch", url: "https://techcrunch.com/feed/", lang: "en", cat: "media", site: "https://techcrunch.com" },
+  { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", lang: "en", cat: "media", site: "https://www.theverge.com" },
+  { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", lang: "en", cat: "media", site: "https://arstechnica.com" },
+  { name: "VentureBeat AI", url: "https://venturebeat.com/category/ai/feed/", lang: "en", cat: "media", site: "https://venturebeat.com/category/ai/" },
+  { name: "MIT Technology Review", url: "https://www.technologyreview.com/feed/", lang: "en", cat: "media", site: "https://www.technologyreview.com" },
+  { name: "The Register", url: "https://www.theregister.com/headlines.atom", lang: "en", cat: "media", site: "https://www.theregister.com" },
+  { name: "Hacker News", url: "https://hnrss.org/frontpage", lang: "en", cat: "media", site: "https://news.ycombinator.com" },
+  { name: "The Decoder", url: "https://the-decoder.com/feed/", lang: "en", cat: "media", site: "https://the-decoder.com" },
+  { name: "IEEE Spectrum", url: "https://spectrum.ieee.org/feeds/feed.rss", lang: "en", cat: "media", site: "https://spectrum.ieee.org" },
 
   // ── 英文 · 半导体 / 硬件 ────────────────────────────
-  { name: "Tom's Hardware", url: "https://www.tomshardware.com/feeds/all", lang: "en" },
-  { name: "Semiconductor Engineering", url: "https://semiengineering.com/feed/", lang: "en" },
-  { name: "EE Times", url: "https://www.eetimes.com/feed/", lang: "en" },
+  { name: "Tom's Hardware", url: "https://www.tomshardware.com/feeds/all", lang: "en", cat: "semi", site: "https://www.tomshardware.com" },
+  { name: "Semiconductor Engineering", url: "https://semiengineering.com/feed/", lang: "en", cat: "semi", site: "https://semiengineering.com" },
+  { name: "EE Times", url: "https://www.eetimes.com/feed/", lang: "en", cat: "semi", site: "https://www.eetimes.com" },
 
   // ── 英文 · 大模型 / 公司官方博客 ────────────────────
-  // 注：Anthropic（Claude）目前没有公开 RSS，暂无法自动抓取。
-  { name: "OpenAI", url: "https://openai.com/news/rss.xml", lang: "en" },
-  { name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml", lang: "en" },
-  { name: "NVIDIA Blog", url: "https://blogs.nvidia.com/feed/", lang: "en" },
-  { name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/", lang: "en" },
-  { name: "AWS Machine Learning", url: "https://aws.amazon.com/blogs/machine-learning/feed/", lang: "en" },
-  { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml", lang: "en" },
+  // 注：Anthropic（Claude）目前没有公开 RSS，只能做外链，见下面的 EXTRA_SOURCES。
+  { name: "OpenAI", url: "https://openai.com/news/rss.xml", lang: "en", cat: "lab", site: "https://openai.com/news/" },
+  { name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml", lang: "en", cat: "lab", site: "https://deepmind.google/discover/blog/" },
+  { name: "NVIDIA Blog", url: "https://blogs.nvidia.com/feed/", lang: "en", cat: "lab", site: "https://blogs.nvidia.com" },
+  { name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/", lang: "en", cat: "lab", site: "https://blog.google/technology/ai/" },
+  { name: "AWS Machine Learning", url: "https://aws.amazon.com/blogs/machine-learning/feed/", lang: "en", cat: "lab", site: "https://aws.amazon.com/blogs/machine-learning/" },
+  { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml", lang: "en", cat: "lab", site: "https://huggingface.co/blog" },
 
   // ── 海外财经主流媒体（经 Google News 站内检索，只筛 AI 产业链相关）─────
   // 这些站点多无可靠官方 RSS / 设有付费墙；我们只展示标题/摘要/链接，正文跳原站。
@@ -71,6 +79,7 @@ const YT = (name: string, channelId: string, kind: "video" | "video_invest" = "v
   url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
   lang: "en",
   kind,
+  site: `https://www.youtube.com/channel/${channelId}`,
 });
 
 export const YOUTUBE_CHANNELS: Feed[] = [
@@ -99,6 +108,19 @@ export const YOUTUBE_CHANNELS: Feed[] = [
   YT("Unchained", "UCWiiMnsnw5Isc2PP1to9nNw", "video_invest"),
   YT("Freakonomics Radio", "UCXjf7anLJA4NqUv8kPFIJWA", "video_invest"),
   YT("Planet Money", "UCwlvY6_2iza-QkE5CIWpIFA", "video_invest"),
+];
+
+// 值得读、但没有公开 RSS 的一手来源。不参与抓取，只出现在首页「Sources」板块里做外链。
+export const EXTRA_SOURCES: { name: string; site: string; cat: SourceCat }[] = [
+  { name: "Anthropic · Claude", site: "https://www.anthropic.com/news", cat: "lab" },
+  { name: "xAI · Grok", site: "https://x.ai/news", cat: "lab" },
+  { name: "Microsoft AI", site: "https://blogs.microsoft.com/ai/", cat: "lab" },
+  { name: "Meta AI · Llama", site: "https://ai.meta.com/blog/", cat: "lab" },
+  { name: "Mistral AI", site: "https://mistral.ai/news/", cat: "lab" },
+  { name: "DeepSeek", site: "https://api-docs.deepseek.com/news", cat: "lab" },
+  { name: "Qwen (Alibaba)", site: "https://qwenlm.github.io/blog/", cat: "lab" },
+  { name: "Zhipu GLM", site: "https://z.ai/blog", cat: "lab" },
+  { name: "Kimi (Moonshot)", site: "https://www.moonshot.cn/", cat: "lab" },
 ];
 
 // 抓取时统一遍历的全部源。YouTube 频道放在最前面：每个频道都是唯一的视频来源，

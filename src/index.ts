@@ -1,4 +1,4 @@
-import { ALL_FEEDS } from "./feeds";
+import { ALL_FEEDS, EXTRA_SOURCES } from "./feeds";
 import { parseFeed } from "./rss";
 import { classify } from "./classify";
 import { scoreValue } from "./picks";
@@ -27,6 +27,8 @@ export interface Env {
   KEEP_SCORE?: string;      // 价值分 ≥ 此值的「重要资讯」永久保留，默认随 PICKS_THRESHOLD（7）
   EXPORT_TOKEN?: string;    // 订阅邮箱 CSV 导出接口的访问密钥；未设置时导出功能关闭
   PICKS_THRESHOLD?: string; // 「今日精选」默认分数阈值，默认 "7"（前端可用 ?min= 覆盖试调）
+  PER_FEED_LIMIT?: string;  // 每个源每轮最多取最新 N 条，默认 10（控制 D1 写入量）
+  INGEST_MIN_VALUE?: string;// layer='other' 的资讯价值分 ≥ 此值才入库，默认 4；"0" 关闭过滤
 }
 
 // 基于链接的稳定 id（FNV-1a 32bit），用于去重
@@ -74,9 +76,12 @@ interface Row {
 }
 
 // ── 抓取 + 分类 + 入库 ────────────────────────────────
-async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newItems: number; upserted: number; aiUsed: boolean; deleted: number; errors: string[] }> {
+// D1 免费额度只有 10 万行写入/天，且每写/删 1 行数据都连带全部索引一起计费，
+// 所以这里的原则是：能不写库的绝不写库 —— 每源限量 + 入库前过滤噪音。
+async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newItems: number; skipped: number; upserted: number; aiUsed: boolean; deleted: number; errors: string[] }> {
   const errors: string[] = [];
   const now = Date.now();
+  const perFeedLimit = Math.max(parseInt(env.PER_FEED_LIMIT || "10", 10) || 10, 1);
 
   // 分批抓取（每批 BATCH 个），降低对 YouTube 等站点的瞬时并发、减少被限流的概率。
   const fetchOne = async (feed: typeof ALL_FEEDS[number]) => {
@@ -86,7 +91,12 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
     });
     if (!res.ok) throw new Error(`${feed.name}: HTTP ${res.status}`);
     const xml = await res.text();
-    return { feed, items: parseFeed(xml) };
+    // 每源限量：只取按发布时间最新的 N 条（无发布时间的视为最新）。
+    // Google News 检索源一次能返回上百条陈旧长尾，全量入库是写入额度的主要浪费之一。
+    const items = parseFeed(xml)
+      .sort((a, b) => (b.publishedAt ?? now) - (a.publishedAt ?? now))
+      .slice(0, perFeedLimit);
+    return { feed, items };
   };
   const BATCH = 8;
   const results: PromiseSettledResult<{ feed: typeof ALL_FEEDS[number]; items: ReturnType<typeof parseFeed> }>[] = [];
@@ -126,7 +136,7 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
     const { results: rows } = await env.DB.prepare(`SELECT id FROM articles WHERE id IN (${ph})`).bind(...chunk).all<{ id: string }>();
     for (const row of rows) existing.add(row.id);
   }
-  const newItems = [...candidates.values()].filter((r) => !existing.has(r.id));
+  let newItems = [...candidates.values()].filter((r) => !existing.has(r.id));
 
   // 视频按频道类型归入 video / video_invest，不进产业链；其余走关键词分类（基线 + AI 失败时的回退）
   // 同时给非视频资讯做「今日精选」价值打分（纯关键词/规则，零成本）。
@@ -137,6 +147,18 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
     const v = scoreValue(r.title, r.summary);
     r.valueScore = v.score; r.valueReason = v.reason;
   }
+
+  // 入库前过滤：没进产业链分类（other）且价值分不够的资讯直接丢弃，不写库。
+  // 这些噪音过去占入库量的近一半，存进去又在保留期到期后被删——一来一回付两次写入费。
+  // 放在 AI 分类之前，被过滤的条目也不再消耗 AI tokens。
+  const minValue = parseInt(env.INGEST_MIN_VALUE || "4", 10) || 0;
+  const beforeFilter = newItems.length;
+  if (minValue > 0) {
+    newItems = newItems.filter((r) =>
+      r.videoLayer !== null || r.layer !== "other" || (r.valueScore ?? 0) >= minValue,
+    );
+  }
+  const skipped = beforeFilter - newItems.length;
 
   // 可选：Claude 语义分类 + 中文标题翻译，覆盖关键词结果（仅资讯，不含视频）
   let aiUsed = false;
@@ -183,16 +205,17 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
       .bind(...investSources).run();
   }
 
-  // 数据保留：默认只保留近 48 小时的资讯，超时自动清理；但「重要资讯」（价值分 ≥ KEEP_SCORE）永久保留。
+  // 数据保留：默认保留近 7 天（168 小时）的资讯，超时自动清理；但「重要资讯」（价值分 ≥ KEEP_SCORE）永久保留。
   // 仅当文章的发布时间和入库时间都早于截止点才删（避免刚抓到、但发布日期较老的内容被秒删）。
+  // 注意 D1 的 DELETE 同样按行计费（连带索引），入库前过滤做得越好，这里要删的就越少。
   let deleted = 0;
   const retentionHours = env.RETENTION_HOURS != null && env.RETENTION_HOURS !== ""
     ? parseInt(env.RETENTION_HOURS, 10)
-    : parseInt(env.RETENTION_DAYS || "30", 10) * 24; // 兼容旧的按天配置
+    : parseInt(env.RETENTION_DAYS || "7", 10) * 24; // 兼容旧的按天配置
   const keepScore = parseInt(env.KEEP_SCORE || env.PICKS_THRESHOLD || "7", 10) || 7;
   if (retentionHours > 0) {
     const cutoff = now - retentionHours * 3600 * 1000;
-    // 到期（发布与入库时间都超过 48 小时）即清理；唯独「价值分 ≥ KEEP_SCORE」的重要资讯永久保留。
+    // 到期（发布与入库时间都超过保留时长）即清理；唯独「价值分 ≥ KEEP_SCORE」的重要资讯永久保留。
     // 未评分（NULL，含历史资讯与视频）按到期清理——历史资讯不再评分，只有从现在起新抓的才打分。
     const res = await env.DB.prepare(
       `DELETE FROM articles
@@ -202,12 +225,7 @@ async function ingest(env: Env): Promise<{ feeds: number; fetched: number; newIt
     deleted = res.meta?.changes ?? 0;
   }
 
-  // English-only site: purge any non-English articles (legacy Chinese content from removed sources).
-  // All current feeds are lang="en", so after the first run this is a no-op.
-  const nonEn = await env.DB.prepare(`DELETE FROM articles WHERE lang <> 'en'`).run();
-  deleted += nonEn.meta?.changes ?? 0;
-
-  return { feeds: ALL_FEEDS.length, fetched, newItems: newItems.length, upserted, aiUsed, deleted, errors };
+  return { feeds: ALL_FEEDS.length, fetched, newItems: newItems.length, skipped, upserted, aiUsed, deleted, errors };
 }
 
 // ── 查询 ──────────────────────────────────────────────
@@ -300,11 +318,17 @@ async function backfillValueScores(env: Env, limit = 1500): Promise<number> {
 }
 
 async function queryStats(env: Env, url: URL) {
-  // 资讯统计：排除视频；可叠加地区/语言过滤，让侧栏计数与列表一致
+  // 资讯统计：排除视频；可叠加地区/语言过滤，让计数与列表一致。
+  // ?hours=N 限定统计窗口（首页热力图用它展示「近 N 小时的资讯热度」）；省略则统计全部留存资讯。
   const lang = url.searchParams.get("lang");
   const region = url.searchParams.get("region");
   const conds = [NOT_VIDEO];
   const binds: unknown[] = [];
+  const hoursRaw = parseInt(url.searchParams.get("hours") || "", 10);
+  if (Number.isFinite(hoursRaw) && hoursRaw > 0) {
+    conds.push("published_at >= ?");
+    binds.push(Date.now() - Math.min(hoursRaw, 720) * 3600 * 1000);
+  }
   if (region === "cn" || region === "global") { conds.push("region = ?"); binds.push(region); }
   if (lang && lang !== "all") { conds.push("lang = ?"); binds.push(lang); }
   const cond = "WHERE " + conds.join(" AND ");
@@ -326,6 +350,38 @@ async function queryStats(env: Env, url: URL) {
 
   return { total: total?.n ?? 0, invest: investRow?.n ?? 0, video: videoRow?.n ?? 0,
     videoInvest: videoInvestRow?.n ?? 0, breakdown: results };
+}
+
+// ── 信息来源清单（首页「Sources」板块）────────────────
+// 直接由 feeds.ts 派生，保证页面上展示的站点与真正在抓的源永远一致：
+// 增删数据源只需改 feeds.ts，前端无需同步维护第二份名单。纯静态响应，不查库。
+const SOURCE_GROUPS: { key: string; label: string }[] = [
+  { key: "lab", label: "AI Labs & Official Blogs" },
+  { key: "media", label: "Tech & AI Media" },
+  { key: "semi", label: "Semiconductors & Hardware" },
+  { key: "finance", label: "Financial Media" },
+  { key: "video", label: "AI & Tech Video Channels" },
+  { key: "video_invest", label: "Investing Video Channels" },
+];
+
+function sourceList() {
+  const bucket: Record<string, { name: string; site: string; fetched: boolean }[]> = {};
+  const seen = new Set<string>();
+  const add = (cat: string, name: string, site: string, fetched: boolean) => {
+    if (!site || seen.has(site)) return; // 同一站点可能既是抓取源又在 EXTRA_SOURCES 里，去重
+    seen.add(site);
+    (bucket[cat] ||= []).push({ name, site, fetched });
+  };
+  for (const f of ALL_FEEDS) {
+    const cat = f.kind === "video" || f.kind === "video_invest" ? f.kind : f.cat || "media";
+    let site = f.site;
+    if (!site) { try { site = new URL(f.url).origin; } catch { site = ""; } }
+    add(cat, f.name, site || "", true);
+  }
+  for (const s of EXTRA_SOURCES) add(s.cat, s.name, s.site, false);
+  return SOURCE_GROUPS
+    .filter((g) => bucket[g.key]?.length)
+    .map((g) => ({ key: g.key, label: g.label, items: bucket[g.key] }));
 }
 
 // 用关键词分类重新归类全部资讯（视频除外）。分类体系调整后跑一次，把存量文章重分到新板块。
@@ -507,32 +563,34 @@ export default {
           },
         });
       }
+      if (path === "/api/sources") {
+        // 首页「Sources」板块：来源站点清单（静态，无 DB 查询），可长缓存。
+        return new Response(JSON.stringify(sourceList()), {
+          headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=3600" },
+        });
+      }
       if (path === "/api/news") return json(await queryNews(env, url));
       if (path === "/api/picks") return json(await queryPicks(env, url));
       if (path === "/api/stats") return json(await queryStats(env, url));
-      if (path === "/api/refresh") {
+      // 管理接口鉴权：必须已配置 REFRESH_TOKEN 且请求携带一致令牌；未配置时整体关闭。
+      // 这些接口都会产生大量 D1 写入（免费额度 10 万行/天），不能对公网开放。
+      const adminAuth = (): Response | null => {
         const token = env.REFRESH_TOKEN || "";
-        if (token) {
-          const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
-          if (provided !== token) return json({ error: "unauthorized" }, 401);
-        }
-        return json({ ok: true, ...(await ingest(env)) });
+        if (!token) return json({ error: "disabled: set REFRESH_TOKEN (wrangler secret) to enable admin APIs" }, 403);
+        const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
+        if (provided !== token) return json({ error: "unauthorized" }, 401);
+        return null;
+      };
+      if (path === "/api/refresh") {
+        return adminAuth() ?? json({ ok: true, ...(await ingest(env)) });
       }
       if (path === "/api/reclassify") {
-        const token = env.REFRESH_TOKEN || "";
-        if (token) {
-          const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
-          if (provided !== token) return json({ error: "unauthorized" }, 401);
-        }
-        return json({ ok: true, ...(await reclassifyAll(env)) });
+        return adminAuth() ?? json({ ok: true, ...(await reclassifyAll(env)) });
       }
       if (path === "/api/rescore-value") {
         // 手动补打/重打价值分（改了 picks.ts 关键词后用）。默认只补 value_score 为空的；?all=1 全量重打。
-        const token = env.REFRESH_TOKEN || "";
-        if (token) {
-          const provided = url.searchParams.get("token") || request.headers.get("x-refresh-token") || "";
-          if (provided !== token) return json({ error: "unauthorized" }, 401);
-        }
+        const denied = adminAuth();
+        if (denied) return denied;
         if (url.searchParams.get("all") === "1") {
           await env.DB.prepare(`UPDATE articles SET value_score = NULL WHERE ${NOT_VIDEO}`).run();
         }

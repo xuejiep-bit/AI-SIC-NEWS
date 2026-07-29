@@ -25,13 +25,13 @@ CREATE TABLE IF NOT EXISTS articles (
   value_reason       TEXT          -- 一句话：命中了哪类高价值信号
 );
 
+-- 索引尽量精简：D1 把每次索引更新也计为一行写入，articles 是高频写删表，
+-- 每多一个索引，每篇文章的插入和删除就各多付 1 行写入费。
+-- 表内常驻仅几千行，segment/lang/region/translate_status 等低选择性过滤走全表扫描即可
+--（读取额度 500 万行/天，远比写入宽裕），故只保留排序、栏目和精选三个核心索引。
 CREATE INDEX IF NOT EXISTS idx_articles_published ON articles(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_articles_layer     ON articles(layer);
-CREATE INDEX IF NOT EXISTS idx_articles_segment   ON articles(segment);
-CREATE INDEX IF NOT EXISTS idx_articles_lang      ON articles(lang);
-CREATE INDEX IF NOT EXISTS idx_articles_region    ON articles(region);
-CREATE INDEX IF NOT EXISTS idx_articles_tstatus   ON articles(translate_status);
-CREATE INDEX IF NOT EXISTS idx_articles_value      ON articles(value_score);
+CREATE INDEX IF NOT EXISTS idx_articles_value     ON articles(value_score);
 
 -- 跨源去重：归一化标题唯一。配合入库时的 INSERT OR IGNORE，
 -- 不同来源转载的同一篇资讯只会保留一条。

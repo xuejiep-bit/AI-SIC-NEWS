@@ -1,6 +1,6 @@
 # AI 产业链实时资讯 · AI Supply Chain News
 
-每天/每小时自动从全球中英文媒体抓取 AI 产业链相关资讯，按 **上游（基础设施）→ 中游（技术与模型）→ 下游（应用）** 的结构自动分类，提供一个可筛选、可搜索的双语网站。
+每天定时（默认 2 次）自动从全球中英文媒体抓取 AI 产业链相关资讯，按 **上游（基础设施）→ 中游（技术与模型）→ 下游（应用）** 的结构自动分类，提供一个可筛选、可搜索的双语网站。
 
 基于 **Cloudflare 全家桶**：Workers（API + 网站）+ D1（数据库）+ Cron（定时抓取）。数据来源以 **RSS / 免费源聚合** 为主，稳定、合法、零成本。
 
@@ -16,6 +16,14 @@
 | **其他** | 未明确归类的行业动态 |
 
 分类逻辑见 `src/taxonomy.ts`（关键词词典）与 `src/classify.ts`（打分匹配）。想调整归类，编辑关键词即可。
+
+## 首页结构
+
+首页只有三段，没有侧栏分类导航：
+
+1. **🔥 Supply-Chain Heat** —— 产业链 24 个细分环节的资讯热度（近 48 小时的真实条数，颜色越深越热）。点任一格子，抽屉里给出该环节的代表公司和最新报道。
+2. **🔥 Hottest right now** —— 全站唯一的资讯列表：按重要性打分排序的最热 30 条，可用 More / Balanced / Top only 调档，搜索框在已加载的列表里本地过滤。
+3. **📡 Sources** —— 全部信息来源站点的网址，按「AI 实验室 / 科技媒体 / 半导体 / 财经媒体 / 视频频道」分组。绿点＝已自动抓取，灰点＝只做外链（无公开 RSS）。名单由 `/api/sources` 从 `src/feeds.ts` 派生，增删数据源只改 `feeds.ts` 一处即可。
 
 ## 国内版 / 国际版
 
@@ -54,7 +62,8 @@ npm run db:init:local
 # 2) 启动本地开发服务器（默认 http://localhost:8787）
 npm run dev
 
-# 3) 触发一次抓取，灌入数据
+# 3) 触发一次抓取，灌入数据（本地默认 REFRESH_TOKEN 为空 = 管理接口关闭，
+#    需先在 wrangler.toml 里临时设置 REFRESH_TOKEN 并在请求里带 ?token=）
 npm run refresh:local        # 等价于 curl http://localhost:8787/api/refresh
 ```
 
@@ -72,7 +81,7 @@ npx wrangler d1 create ai-sic-news
 # 3) 远端建表
 npm run db:init
 
-# 4)（可选）设置手动刷新接口的保护令牌
+# 4)（可选）设置管理接口（/api/refresh 等）的保护令牌；不设置则这些接口整体关闭
 npx wrangler secret put REFRESH_TOKEN
 
 # 5) 部署
@@ -81,8 +90,17 @@ npm run deploy
 
 部署后：
 - 网站在 Worker 的默认域名上（`*.workers.dev`）或你绑定的自定义域名。
-- Cron（默认每小时，见 `wrangler.toml` 的 `crons`）会自动抓取入库，无需人工干预。
-- 也可手动触发：`GET /api/refresh?token=<你的令牌>`。
+- Cron（默认每天 2 次，见 `wrangler.toml` 的 `crons`）会自动抓取入库，无需人工干预。
+- 也可手动触发：`GET /api/refresh?token=<你的令牌>`（需已设置 `REFRESH_TOKEN`，未设置时接口关闭）。
+
+### D1 写入额度（免费版 10 万行/天）
+
+D1 按「行写入」计费，且每插入/删除 1 行数据，表上的每个索引也各计 1 行。为控制写入量，抓取管线做了四层限制（都可在 `wrangler.toml` 调整）：
+
+- **降频**：Cron 每天 2 次（曾经每小时一次是写入超标的放大器之一）。
+- **每源限量**：`PER_FEED_LIMIT`（默认 10），每个源每轮只取最新 N 条。
+- **入库前过滤**：`INGEST_MIN_VALUE`（默认 4），分类为 other 的低价值资讯直接丢弃、不写库。
+- **精简索引**：articles 表只保留 4 个索引（见 `migrations/0005_optimize_writes.sql`）。
 
 ## API
 
@@ -90,8 +108,10 @@ npm run deploy
 |------|------|
 | `GET /` | 双语网站首页 |
 | `GET /api/news?layer=&segment=&lang=&q=&limit=` | 资讯列表（JSON），支持按层级/环节/语言/关键词筛选 |
-| `GET /api/stats` | 各层级 / 环节的资讯计数 |
-| `GET /api/refresh?token=` | 手动触发抓取（令牌保护，定时任务会自动执行此逻辑） |
+| `GET /api/picks?min=&hours=&limit=` | 最热资讯（按重要性打分排序），首页主列表用 |
+| `GET /api/stats?hours=` | 各层级 / 环节的资讯计数；`hours=` 限定统计窗口，首页热力图用 |
+| `GET /api/sources` | 信息来源站点清单（由 `src/feeds.ts` 派生），首页 Sources 板块用 |
+| `GET /api/refresh?token=` | 手动触发抓取（管理接口：必须配置 REFRESH_TOKEN，否则关闭） |
 
 ## 后续可扩展
 

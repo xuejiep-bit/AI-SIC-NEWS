@@ -9,7 +9,7 @@
     "deploy": "wrangler deploy",
     "db:init": "wrangler d1 execute ai-sic-news --file=./schema.sql",
     "db:init:local": "wrangler d1 execute ai-sic-news --local --file=./schema.sql",
-    "refresh:local": "curl -s http://localhost:8787/api/refresh"
+    "refresh:local": "curl -s \"http://localhost:8787/api/refresh?token=$REFRESH_TOKEN\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0"

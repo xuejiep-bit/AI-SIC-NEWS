@@ -131,13 +131,24 @@ export const PAGE_HTML = /* html */ `<!DOCTYPE html>
   #heatHero .hm-tier { margin:12px 0 6px; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase;
     color:var(--dim); display:flex; align-items:center; gap:8px; }
   #heatHero .hm-tier .dot { width:8px; height:8px; border-radius:50%; flex:none; }
-  #heatHero .hm-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(100px, 1fr)); gap:6px; }
-  #heatHero .hm-cell { border-radius:6px; padding:9px 10px 8px; cursor:pointer; border:1px solid transparent;
-    transition:transform .12s, box-shadow .12s, border-color .12s; min-width:0; }
+  /* 格子大小随资讯量变化：最热的环节占 2×2 / 2×1 格，冷门与 0 占 1×1。
+     grid-auto-flow:dense 让小格子自动回填大格子留下的空隙，避免出现空洞。 */
+  #heatHero .hm-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(108px, 1fr));
+    grid-auto-rows:72px; grid-auto-flow:dense; gap:6px; }
+  #heatHero .hm-cell { border-radius:6px; padding:8px 10px; cursor:pointer; border:1px solid transparent;
+    transition:transform .12s, box-shadow .12s, border-color .12s; min-width:0; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:space-between; }
   #heatHero .hm-cell:hover, #heatHero .hm-cell:focus-visible { transform:translateY(-1px);
     border-color:rgba(230,233,240,.35); box-shadow:0 2px 10px rgba(0,0,0,.35); outline:none; }
-  #heatHero .hm-name { font-size:11px; line-height:1.35; opacity:.92; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #heatHero .hm-count { font-size:18px; font-weight:800; margin-top:2px; font-variant-numeric:tabular-nums; }
+  #heatHero .hm-cell.w2 { grid-column:span 2; }
+  #heatHero .hm-cell.h2 { grid-row:span 2; }
+  #heatHero .hm-cell.zero { opacity:.5; }
+  /* 环节名允许折到两行：格子窄，单行会把「Advanced Packaging」这类名字截成「Advanced Pa…」 */
+  #heatHero .hm-name { font-size:11px; line-height:1.35; opacity:.92; overflow:hidden;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  #heatHero .hm-cell.h2 .hm-name { font-size:12.5px; }
+  /* line-height 需略大于 1，否则大字号数字的字形盒会超出行盒、被 overflow:hidden 切到边缘 */
+  #heatHero .hm-count { font-weight:800; line-height:1.12; font-variant-numeric:tabular-nums; }
   #heatHero .hm-legend { display:flex; align-items:center; gap:10px; margin-top:14px; color:var(--dim); font-size:11.5px; }
   #heatHero .hm-scale { flex:0 0 140px; height:8px; border-radius:4px;
     background:linear-gradient(90deg, #16213a, #1d3a6e, #2757ab, #3b78e7, #63a2ff); border:1px solid var(--line); }
@@ -403,16 +414,24 @@ function SupplyChainHeatmap(host, data){
   const max = Math.max(1, ...data.flatMap(t=>t.items.map(x=>x.count||0)));
   HM_ITEM = {};
   let h = '<div class="hm-head"><h2 class="hm-title">🔥 Supply-Chain Heat</h2>'+
-    '<span class="hm-sub">Articles per segment, last '+HEAT_HOURS+'h — darker = hotter. Click a cell for its latest stories.</span></div>';
+    '<span class="hm-sub">Articles per segment, last '+HEAT_HOURS+'h — bigger and darker = hotter. Click a cell for its latest stories.</span></div>';
   data.forEach((tier,ti)=>{
     h += '<div class="hm-tier"><span class="dot" style="background:'+(tier.color||"var(--acc)")+'"></span>'+esc(tier.tier)+'</div>';
     h += '<div class="hm-grid">';
     tier.items.forEach((it,ii)=>{
       const id = "hm-"+ti+"-"+ii; HM_ITEM[id]={item:it,tier:tier.tier,layer:tier.layer};
-      const c = hmColor((it.count||0)/max);
-      h += '<div class="hm-cell" id="'+id+'" tabindex="0" role="button" aria-label="'+esc(it.name)+', '+(it.count||0)+' articles"'+
+      const n = it.count||0;
+      const ratio = n/max;              // 相对全图最热环节，色深与格子大小都用它
+      const c = hmColor(ratio);
+      // 面积分三档：领先梯队 2×2、次热 2×1、其余 1×1。0 再额外调暗，一眼能看出「这块没动静」。
+      const size = n===0 ? " zero" : (ratio>=0.7 ? " w2 h2" : (ratio>=0.35 ? " w2" : ""));
+      // 数字字号在档位内继续连续放大，让同为大格的 38 和 26 也能分出高下。
+      const fs = (15 + Math.round(ratio*19));
+      h += '<div class="hm-cell'+size+'" id="'+id+'" tabindex="0" role="button" title="'+esc(it.name)+' — '+n+' articles"'+
+        ' aria-label="'+esc(it.name)+', '+n+' articles"'+
         ' style="background:'+c.bg+';color:'+c.fg+'">'+
-        '<div class="hm-name">'+esc(it.name)+'</div><div class="hm-count">'+(it.count||0)+'</div></div>';
+        '<div class="hm-name">'+esc(it.name)+'</div>'+
+        '<div class="hm-count" style="font-size:'+fs+'px">'+n+'</div></div>';
     });
     h += '</div>';
   });
